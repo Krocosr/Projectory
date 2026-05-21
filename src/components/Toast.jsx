@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { Z_INDEX } from '@/lib/constants';
 import { AnimatePresence, motion } from 'framer-motion';
 
 let toastIdCounter = 0;
@@ -99,7 +100,8 @@ const TYPE_STYLES = {
 export default function ToastContainer({ toasts, onDismiss }) {
   return (
     <div 
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 items-center pointer-events-none"
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 flex flex-col gap-2 items-center pointer-events-none"
+      style={{ zIndex: Z_INDEX.TOAST }}
       aria-live="polite"
       aria-atomic="true"
       role="status"

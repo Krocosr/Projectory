@@ -1,5 +1,6 @@
 'use client';
 import { Component } from 'react';
+import PropTypes from 'prop-types';
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -25,6 +26,14 @@ class ErrorBoundary extends Component {
     if (this.props.onReset) {
       this.props.onReset();
     }
+  };
+
+  static propTypes = {
+    children: PropTypes.node,
+    context: PropTypes.string,
+    errorMessage: PropTypes.string,
+    fallback: PropTypes.func,
+    onReset: PropTypes.func,
   };
 
   render() {

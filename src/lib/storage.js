@@ -46,6 +46,72 @@ export function loadProjects() {
 }
 
 /**
+ * Try to recover projects from the server-side API when localStorage is empty
+ * 
+ * @returns {Promise<Array|null>} Projects array if API has data, null otherwise
+ */
+export async function recoverFromApi() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const res = await fetch('/api/projects');
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.projects && data.projects.length > 0) {
+      // Restore to localStorage immediately so subsequent loads are instant
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data.projects));
+      console.log('[recovery] Restored', data.projects.length, 'projects from server backup');
+      return data.projects;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Export projects as a downloadable JSON file
+ * 
+ * @param {Array} projects - Array of project objects
+ */
+export function exportToFile(projects) {
+  const blob = new Blob([JSON.stringify(projects, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `deadliner-backup-${new Date().toISOString().split('T')[0]}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Import projects from an uploaded JSON file
+ * 
+ * @param {File} file - The uploaded JSON file
+ * @returns {Promise<{projects: Array, error: string|null}>}
+ */
+export function importFromFile(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (!Array.isArray(data)) {
+          resolve({ projects: null, error: 'Invalid format: expected an array of projects' });
+          return;
+        }
+        resolve({ projects: data, error: null });
+      } catch {
+        resolve({ projects: null, error: 'Invalid JSON file' });
+      }
+    };
+    reader.onerror = () => resolve({ projects: null, error: 'Failed to read file' });
+    reader.readAsText(file);
+  });
+}
+
+/**
  * Save projects to localStorage with versioned structure
  * 
  * Stores data as { version, projects } to support future migrations
@@ -53,28 +119,48 @@ export function loadProjects() {
  * @param {Array} projects - Array of project objects
  * @returns {boolean} True if save succeeded, false otherwise
  */
+function syncToApi(projects) {
+  if (typeof window === 'undefined') return;
+  try {
+    fetch('/api/projects', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projects }),
+    }).catch(() => {});
+  } catch {
+    // Best-effort — API may not be running
+  }
+}
+
 export function saveProjects(projects) {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === 'undefined') return { success: false, error: 'Not in browser' };
   
   // Validate input
   if (!Array.isArray(projects)) {
-    console.error('saveProjects: expected array, got', typeof projects);
-    return false;
+    const msg = 'saveProjects: expected array, got ' + typeof projects;
+    console.error(msg);
+    return { success: false, error: msg };
   }
   
   try {
     const serialized = JSON.stringify(projects);
     localStorage.setItem(STORAGE_KEY, serialized);
-    return true;
+    
+    // Best-effort API sync for OpenCode tooling
+    syncToApi(projects);
+    
+    return { success: true };
   } catch (e) {
     console.error('Failed to save projects:', e);
     
     // Handle quota exceeded error
     if (e.name === 'QuotaExceededError' || e.code === 22) {
+      const msg = 'localStorage is full. Try clearing old data.';
       console.error('localStorage quota exceeded. Consider cleaning up old data.');
+      return { success: false, error: msg };
     }
     
-    return false;
+    return { success: false, error: e.message || 'Failed to save projects' };
   }
 }
 

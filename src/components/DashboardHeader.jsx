@@ -1,10 +1,25 @@
 'use client';
+import { memo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import PropTypes from 'prop-types';
 
 const FILTERS = ['All', 'Active', 'Paused', 'Ideas', 'Finished', 'Archived'];
 
-export default function DashboardHeader({ activeFilter, onFilterChange, projectCounts, searchQuery, onSearchChange }) {
+const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterChange, projectCounts, searchQuery, onSearchChange, onExport, onImport }) {
+  const fileInputRef = useRef(null);
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    onImport?.(file);
+    // Reset input so the same file can be re-selected
+    e.target.value = '';
+  };
+
   return (
     <header className="mb-10">
       <div className="flex items-center justify-between mb-6">
@@ -16,7 +31,33 @@ export default function DashboardHeader({ activeFilter, onFilterChange, projectC
             {projectCounts?.total || 0} projects across {projectCounts?.statusCount || 0} states
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onExport}
+            title="Export projects as JSON backup"
+            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--border-subtle)]/50 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+          </button>
+          <button
+            onClick={handleImportClick}
+            title="Import projects from JSON backup"
+            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--border-subtle)]/50 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+            </svg>
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleFileChange}
+            className="hidden"
+            aria-hidden="true"
+          />
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/40 border border-[var(--border-subtle)]">
             <svg className="w-3.5 h-3.5 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -79,7 +120,7 @@ export default function DashboardHeader({ activeFilter, onFilterChange, projectC
       </nav>
     </header>
   );
-}
+});
 
 DashboardHeader.propTypes = {
   activeFilter: PropTypes.string.isRequired,
@@ -96,4 +137,8 @@ DashboardHeader.propTypes = {
   }),
   searchQuery: PropTypes.string,
   onSearchChange: PropTypes.func,
+  onExport: PropTypes.func,
+  onImport: PropTypes.func,
 };
+
+export default DashboardHeader;

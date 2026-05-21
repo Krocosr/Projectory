@@ -3,8 +3,9 @@ import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { createTodo } from '@/lib/storage';
+import PropTypes from 'prop-types';
 import { STATUSES, STATUS_COLORS, STATUS_BG, PRIORITY_STYLES, AUTO_SAVE_DEBOUNCE_MS } from '@/lib/constants';
-import { formatDeadlineForDisplay, formatRelativeTime } from '@/lib/dateUtils';
+import { formatDeadlineForDisplay, formatRelativeTime, toDateInputValue } from '@/lib/dateUtils';
 
 const TABS = ['Overview', 'Todos', 'Workspace', 'Timeline', 'Settings'];
 
@@ -24,15 +25,18 @@ function computeProgress(todos) {
   return Math.round((done / todos.length) * 100);
 }
 
+function computeNextStepText(todos) {
+  const active = (todos || []).filter((t) => !t.done);
+  if (active.length <= 1) return '-';
+  const firstActive = active[0];
+  const nextHigh = active.find((t) => t.priority === 'High');
+  if (nextHigh && nextHigh.id !== firstActive.id) return nextHigh.text;
+  return active[1]?.text || '-';
+}
+
 function getFirstActiveTodo(todos) {
   if (!todos || todos.length === 0) return null;
   return todos.find((t) => !t.done) || null;
-}
-
-function getNextHighPriorityTodo(todos) {
-  if (!todos || todos.length === 0) return null;
-  const activeTodos = todos.filter((t) => !t.done);
-  return activeTodos.find((t) => t.priority === 'High') || null;
 }
 
 function DetailRow({ label, value }) {
@@ -432,19 +436,8 @@ function OverviewTab({ project, onAddTodo, onToggleTodo, onRemoveTodo, onEditTod
     const recent = active.slice(0, 3);
     const prog = computeProgress(project.todos);
     const firstActive = getFirstActiveTodo(project.todos);
-    const nextHighPriority = getNextHighPriorityTodo(project.todos);
-    
-    // Compute Next Step: show "-" if same as Current Focus or only 1 todo
     const currentFocus = firstActive ? firstActive.text : 'No active todos';
-    let nextStep = '-';
-    if (active.length > 1) {
-      if (nextHighPriority && nextHighPriority.id !== firstActive?.id) {
-        nextStep = nextHighPriority.text;
-      } else if (active.length > 1) {
-        // Find second active todo if nextHighPriority is same as firstActive
-        nextStep = active[1]?.text || '-';
-      }
-    }
+    const nextStep = computeNextStepText(project.todos);
     
     return {
       activeTodos: active,
@@ -456,12 +449,7 @@ function OverviewTab({ project, onAddTodo, onToggleTodo, onRemoveTodo, onEditTod
   }, [project.todos]);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25 }}
-      className="space-y-1"
-    >
+    <div className="space-y-1">
       <DetailRow label="Goal" value={project.goal} />
       <DetailRow label="Current Focus" value={project.currentFocus || currentFocusText} />
       <DetailRow label="Next Step" value={project.nextStep || nextStepText} />
@@ -509,7 +497,6 @@ function OverviewTab({ project, onAddTodo, onToggleTodo, onRemoveTodo, onEditTod
               onRemove={onRemoveTodo}
               onEdit={onEditTodo}
               onReorder={(reordered) => {
-                // merge reordered active (first 3) back into full list
                 const fullActive = (project.todos || []).filter((t) => !t.done);
                 const rest = fullActive.slice(3);
                 const done = (project.todos || []).filter((t) => t.done);
@@ -524,15 +511,17 @@ function OverviewTab({ project, onAddTodo, onToggleTodo, onRemoveTodo, onEditTod
           <AddTodoBar onAdd={onAddTodo} />
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
 function TodosTab({ project, onAddTodo, onToggleTodo, onRemoveTodo, onEditTodo, onReorderTodos }) {
   const [section, setSection] = useState('Active');
 
-  const activeTodos = (project.todos || []).filter((t) => !t.done);
-  const doneTodos = (project.todos || []).filter((t) => t.done);
+  const { activeTodos, doneTodos } = useMemo(() => ({
+    activeTodos: (project.todos || []).filter((t) => !t.done),
+    doneTodos: (project.todos || []).filter((t) => t.done),
+  }), [project.todos]);
   const displayedTodos = section === 'Active' ? activeTodos : doneTodos;
 
   const handleReorderActive = (reordered) => {
@@ -546,11 +535,7 @@ function TodosTab({ project, onAddTodo, onToggleTodo, onRemoveTodo, onEditTodo, 
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25 }}
-    >
+    <div>
       <div className="flex items-center gap-6 mb-5 border-b border-[var(--border-subtle)] pb-3">
         {['Active', 'Done'].map((s) => (
           <button
@@ -587,7 +572,7 @@ function TodosTab({ project, onAddTodo, onToggleTodo, onRemoveTodo, onEditTodo, 
       <div className="mt-4">
         <AddTodoBar onAdd={onAddTodo} />
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -598,7 +583,13 @@ function WorkspaceTab({ project, onUpdateProject, onNotify }) {
   const [assetName, setAssetName] = useState('');
   const [assetUrl, setAssetUrl] = useState('');
   const projectRef = useRef(project);
+  const onUpdateRef = useRef(onUpdateProject);
+  const onNotifyRef = useRef(onNotify);
+  const noteTextRef = useRef(noteText);
   projectRef.current = project;
+  onUpdateRef.current = onUpdateProject;
+  onNotifyRef.current = onNotify;
+  noteTextRef.current = noteText;
 
   useEffect(() => {
     setNoteText(project.notes || '');
@@ -607,12 +598,21 @@ function WorkspaceTab({ project, onUpdateProject, onNotify }) {
   useEffect(() => {
     const timer = setTimeout(() => {
       if (noteText !== projectRef.current.notes) {
-        onUpdateProject({ ...projectRef.current, notes: noteText });
-        onNotify('Notes auto-saved');
+        onUpdateRef.current({ ...projectRef.current, notes: noteText });
+        onNotifyRef.current('Notes auto-saved');
       }
     }, 600);
     return () => clearTimeout(timer);
-  }, [noteText, onUpdateProject, onNotify]);
+  }, [noteText]);
+
+  useEffect(() => {
+    return () => {
+      if (noteTextRef.current !== projectRef.current.notes) {
+        onUpdateRef.current({ ...projectRef.current, notes: noteTextRef.current });
+        onNotifyRef.current('Notes saved');
+      }
+    };
+  }, []);
 
   const handleSaveNotes = () => {
     onUpdateProject({ ...project, notes: noteText });
@@ -665,12 +665,7 @@ function WorkspaceTab({ project, onUpdateProject, onNotify }) {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25 }}
-      className="space-y-6"
-    >
+    <div className="space-y-6">
       {/* Notes */}
       <div>
         <div className="flex items-center gap-2 mb-3">
@@ -688,6 +683,7 @@ function WorkspaceTab({ project, onUpdateProject, onNotify }) {
             placeholder="Write your notes here..."
             rows={6}
             className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-subtle)] bg-white text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all resize-none"
+            aria-label="Project notes"
           />
           <button
             onClick={handleSaveNotes}
@@ -717,12 +713,14 @@ function WorkspaceTab({ project, onUpdateProject, onNotify }) {
               onChange={(e) => setNewLinkTitle(e.target.value)}
               placeholder="Title"
               className="flex-1 px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-white text-sm outline-none focus:ring-2 focus:ring-[var(--accent-slate)]/30 transition-all"
+              aria-label="Link title"
             />
             <input
               type="url"
               value={newLinkUrl}
               onChange={(e) => setNewLinkUrl(e.target.value)}
               placeholder="URL"
+              aria-label="Link URL"
               className="flex-1 px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-white text-sm outline-none focus:ring-2 focus:ring-[var(--accent-slate)]/30 transition-all"
             />
             <button
@@ -761,7 +759,7 @@ function WorkspaceTab({ project, onUpdateProject, onNotify }) {
         </div>
       </div>
 
-      {/* Assets — now functional */}
+      {/* Assets */}
       <div>
         <div className="flex items-center gap-2 mb-3">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: '#5A8F6C10' }}>
@@ -779,12 +777,14 @@ function WorkspaceTab({ project, onUpdateProject, onNotify }) {
               onChange={(e) => setAssetName(e.target.value)}
               placeholder="Asset name"
               className="flex-1 px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-white text-sm outline-none focus:ring-2 focus:ring-[#5A8F6C]/30 transition-all"
+              aria-label="Asset name"
             />
             <input
               type="text"
               value={assetUrl}
               onChange={(e) => setAssetUrl(e.target.value)}
               placeholder="URL or path (optional)"
+              aria-label="Asset URL"
               className="flex-1 px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-white text-sm outline-none focus:ring-2 focus:ring-[#5A8F6C]/30 transition-all"
             />
             <button
@@ -797,7 +797,7 @@ function WorkspaceTab({ project, onUpdateProject, onNotify }) {
           </form>
           <div className="space-y-2">
             {(project.assets || []).length > 0 ? project.assets.map((asset, i) => (
-              <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-[var(--border-subtle)]/40 group">
+              <div key={asset.name + (asset.url || '') + i} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-[var(--border-subtle)]/40 group">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#5A8F6C] shrink-0" />
                   {asset.url ? (
@@ -829,30 +829,25 @@ function WorkspaceTab({ project, onUpdateProject, onNotify }) {
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
 function TimelineTab({ project }) {
   // Sort timeline entries by date descending (most recent first)
-  const sortedTimeline = [...(project.timeline || [])].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const sortedTimeline = [...(project.timeline || [])].sort((a, b) => b.date.localeCompare(a.date));
   const grouped = groupTimelineByDate(sortedTimeline);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25 }}
-      className="space-y-6"
-    >
+    <div className="space-y-6">
       {Object.keys(grouped).length > 0 ? Object.entries(grouped).map(([date, entries]) => (
         <div key={date}>
           <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-3">
             {date}
           </h3>
           <div className="space-y-2">
-            {entries.map((entry, i) => (
-              <div key={i} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-[var(--text-secondary)]">
+            {entries.map((entry) => (
+              <div key={entry.action + entry.date} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-[var(--text-secondary)]">
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--border-subtle)] shrink-0" />
                 <span className="flex-1">{entry.action}</span>
                 <span className="text-xs text-[var(--text-muted)]">{formatRelativeTime(entry.date)}</span>
@@ -863,7 +858,7 @@ function TimelineTab({ project }) {
       )) : (
         <p className="text-xs text-[var(--text-muted)] text-center py-8">No activity yet</p>
       )}
-    </motion.div>
+    </div>
   );
 }
 
@@ -879,7 +874,14 @@ function SettingsTab({ project, onUpdateProject, onNotify, onUnsavedChanges }) {
 
   useEffect(() => {
     if (editing) {
-      const changed = JSON.stringify(form) !== JSON.stringify(project);
+      const changed = (
+        form.title !== project.title ||
+        form.status !== project.status ||
+        form.deadline !== project.deadline ||
+        form.goal !== project.goal ||
+        form.description !== project.description ||
+        form.goal !== project.goal
+      );
       setHasUnsavedChanges(changed);
       onUnsavedChanges?.(changed);
     } else {
@@ -906,8 +908,7 @@ function SettingsTab({ project, onUpdateProject, onNotify, onUnsavedChanges }) {
       deadline: form.deadline,
       goal: form.goal,
       description: form.description,
-      currentFocus: form.currentFocus,
-      nextStep: form.nextStep,
+
     });
     setEditing(false);
     setHasUnsavedChanges(false);
@@ -928,18 +929,12 @@ function SettingsTab({ project, onUpdateProject, onNotify, onUnsavedChanges }) {
 
   if (!editing) {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.25 }}
-        className="space-y-4"
-      >
+      <div className="space-y-4">
         {[
           { label: 'Project Name', value: project.title },
           { label: 'Status', value: project.status, isStatus: true },
           { label: 'Goal', value: project.goal },
-          { label: 'Current Focus', value: project.currentFocus },
-          { label: 'Next Step', value: project.nextStep },
+
           { label: 'Deadline', value: formatDeadlineForDisplay(project.deadline) },
           { label: 'Description', value: project.description },
         ].map((field) => (
@@ -961,18 +956,13 @@ function SettingsTab({ project, onUpdateProject, onNotify, onUnsavedChanges }) {
         >
           Edit Project
         </button>
-      </motion.div>
+      </div>
     );
   }
 
-  // Edit form — correct order: Name, Status, Goal, Current Focus, Next Step, Deadline, Description
+  // Edit form
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25 }}
-      className="space-y-4"
-    >
+    <div className="space-y-4">
       {/* Project Name */}
       <div className="py-2">
         <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">Project Name</label>
@@ -999,28 +989,22 @@ function SettingsTab({ project, onUpdateProject, onNotify, onUnsavedChanges }) {
         </select>
       </div>
 
-      {[
-        { key: 'goal', label: 'Goal' },
-        { key: 'currentFocus', label: 'Current Focus' },
-        { key: 'nextStep', label: 'Next Step' },
-      ].map((field) => (
-        <div key={field.key} className="py-2">
-          <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">{field.label}</label>
-          <input
-            type="text"
-            value={form[field.key] || ''}
-            onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
-            className="w-full px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-white text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all"
-          />
-        </div>
-      ))}
+      <div className="py-2">
+        <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">Goal</label>
+        <input
+          type="text"
+          value={form.goal || ''}
+          onChange={(e) => setForm({ ...form, goal: e.target.value })}
+          className="w-full px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-white text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all"
+        />
+      </div>
 
       {/* Deadline — calendar picker */}
       <div className="py-2">
         <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">Deadline</label>
         <input
           type="date"
-          value={form.deadline || ''}
+          value={toDateInputValue(form.deadline) || ''}
           onChange={(e) => setForm({ ...form, deadline: e.target.value })}
           className="w-full px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-white text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all"
         />
@@ -1059,16 +1043,18 @@ function SettingsTab({ project, onUpdateProject, onNotify, onUnsavedChanges }) {
           Save Changes
         </button>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
 export default function ProjectDetailView({ project, onBack, onUpdateProject, onDeleteProject, onNotify }) {
+  console.log('[render] ProjectDetailView | id:', project.id, '| title:', project.title);
   const [activeTab, setActiveTab] = useState('Overview');
   const [editingTodo, setEditingTodo] = useState(null);
   const [settingsHasUnsavedChanges, setSettingsHasUnsavedChanges] = useState(false);
 
-  const handleTabChange = (newTab) => {
+  const handleTabChange = useCallback((newTab) => {
+    console.log('[nav] tab change | from:', activeTab, '| to:', newTab);
     if (activeTab === 'Settings' && settingsHasUnsavedChanges) {
       if (window.confirm('You have unsaved changes in Settings. Discard them?')) {
         setActiveTab(newTab);
@@ -1077,26 +1063,14 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
     } else {
       setActiveTab(newTab);
     }
-  };
+  }, [activeTab, settingsHasUnsavedChanges]);
 
-  const handleAddTodo = (text, priority, details) => {
+  const handleAddTodo = useCallback((text, priority, details) => {
     const todo = createTodo(text, priority, details);
     const newTodos = [...(project.todos || []), todo];
     
-    // Use memoized calculations
-    const activeTodos = newTodos.filter((t) => !t.done);
     const firstActive = getFirstActiveTodo(newTodos);
-    const nextHighPriority = getNextHighPriorityTodo(newTodos);
-    
-    // Compute Next Step: show "-" if same as Current Focus or only 1 todo
-    let nextStepText = '-';
-    if (activeTodos.length > 1) {
-      if (nextHighPriority && nextHighPriority.id !== firstActive?.id) {
-        nextStepText = nextHighPriority.text;
-      } else if (activeTodos.length > 1) {
-        nextStepText = activeTodos[1]?.text || '-';
-      }
-    }
+    const nextStepText = computeNextStepText(newTodos);
     
     const updated = {
       ...project,
@@ -1110,13 +1084,13 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
     };
     onUpdateProject(updated);
     onNotify?.('Todo added');
-  };
+  }, [project, onUpdateProject, onNotify]);
 
-  const handleEditTodo = (todo) => {
+  const handleEditTodo = useCallback((todo) => {
     setEditingTodo(todo);
-  };
+  }, []);
 
-  const handleSaveEditedTodo = (editedTodo) => {
+  const handleSaveEditedTodo = useCallback((editedTodo) => {
     const newTodos = (project.todos || []).map((t) =>
       t.id === editedTodo.id ? editedTodo : t
     );
@@ -1128,28 +1102,15 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
     };
     onUpdateProject(updated);
     onNotify?.('Todo updated');
-  };
+  }, [project, onUpdateProject, onNotify]);
 
-  const handleToggleTodo = (todoId) => {
+  const handleToggleTodo = useCallback((todoId) => {
     const newTodos = (project.todos || []).map((t) =>
       t.id === todoId ? { ...t, done: !t.done } : t
     );
     const toggled = newTodos.find((t) => t.id === todoId);
-    
-    // Use memoized calculations
-    const activeTodos = newTodos.filter((t) => !t.done);
     const firstActive = getFirstActiveTodo(newTodos);
-    const nextHighPriority = getNextHighPriorityTodo(newTodos);
-    
-    // Compute Next Step: show "-" if same as Current Focus or only 1 todo
-    let nextStepText = '-';
-    if (activeTodos.length > 1) {
-      if (nextHighPriority && nextHighPriority.id !== firstActive?.id) {
-        nextStepText = nextHighPriority.text;
-      } else if (activeTodos.length > 1) {
-        nextStepText = activeTodos[1]?.text || '-';
-      }
-    }
+    const nextStepText = computeNextStepText(newTodos);
     
     const updated = {
       ...project,
@@ -1166,26 +1127,13 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
     };
     onUpdateProject(updated);
     onNotify?.(toggled?.done ? 'Todo completed' : 'Todo reopened');
-  };
+  }, [project, onUpdateProject, onNotify]);
 
-  const handleRemoveTodo = (todoId) => {
+  const handleRemoveTodo = useCallback((todoId) => {
     const removed = (project.todos || []).find((t) => t.id === todoId);
     const newTodos = (project.todos || []).filter((t) => t.id !== todoId);
-    
-    // Use memoized calculations
-    const activeTodos = newTodos.filter((t) => !t.done);
     const firstActive = getFirstActiveTodo(newTodos);
-    const nextHighPriority = getNextHighPriorityTodo(newTodos);
-    
-    // Compute Next Step: show "-" if same as Current Focus or only 1 todo
-    let nextStepText = '-';
-    if (activeTodos.length > 1) {
-      if (nextHighPriority && nextHighPriority.id !== firstActive?.id) {
-        nextStepText = nextHighPriority.text;
-      } else if (activeTodos.length > 1) {
-        nextStepText = activeTodos[1]?.text || '-';
-      }
-    }
+    const nextStepText = computeNextStepText(newTodos);
     
     const updated = {
       ...project,
@@ -1199,33 +1147,37 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
     };
     onUpdateProject(updated);
     onNotify?.('Todo removed');
-  };
+  }, [project, onUpdateProject, onNotify]);
 
-  const handleReorderTodos = (reorderedTodos) => {
+  const handleReorderTodos = useCallback((reorderedTodos) => {
     const updated = {
       ...project,
       todos: reorderedTodos,
     };
     onUpdateProject(updated);
-  };
+  }, [project, onUpdateProject]);
 
-  const handleDeleteProject = () => {
+  const handleDeleteProject = useCallback(() => {
     if (window.confirm(`Delete "${project.title}"? This cannot be undone.`)) {
       onDeleteProject?.(project.id);
       onNotify?.('Project deleted');
     }
-  };
+  }, [onDeleteProject, onNotify, project.id, project.title]);
 
   // Memoize progress calculation at component level
   const progress = useMemo(() => computeProgress(project.todos), [project.todos]);
 
+  const headerInfo = useMemo(() => {
+    const firstActive = getFirstActiveTodo(project.todos);
+    return {
+      currentFocusText: project.currentFocus || firstActive?.text || 'Not set',
+      nextStepText: project.nextStep || computeNextStepText(project.todos) || 'No todos yet',
+      activeTodoCount: (project.todos || []).filter((t) => !t.done).length,
+    };
+  }, [project.todos, project.currentFocus, project.nextStep]);
+
   return (
-    <motion.div
-      initial={{ opacity: 0, x: 40 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -40 }}
-      transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
-    >
+    <div>
       <div className="flex items-center justify-between mb-6">
         <motion.button
           onClick={onBack}
@@ -1283,19 +1235,26 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
             <div className="flex flex-wrap gap-x-6 gap-y-1.5 mb-3">
               <span className="text-xs text-[var(--text-secondary)]">
                 <span className="text-[var(--text-muted)]">Focus:</span>{' '}
-                {project.currentFocus || getFirstActiveTodo(project.todos)?.text || 'Not set'}
+                {headerInfo.currentFocusText}
               </span>
               <span className="text-xs text-[var(--text-secondary)]">
                 <span className="text-[var(--text-muted)]">Next:</span>{' '}
-                {project.nextStep || getFirstActiveTodo(project.todos)?.text || 'No todos yet'}
+                {headerInfo.nextStepText}
               </span>
               <span className="text-xs text-[var(--text-muted)]">
-                {(project.todos || []).filter((t) => !t.done).length} todos remaining
+                {headerInfo.activeTodoCount} todos remaining
               </span>
             </div>
             {/* Dynamic progress */}
             <div className="flex items-center gap-2">
-              <div className="flex-1 h-1.5 bg-[var(--border-subtle)] rounded-full overflow-hidden">
+              <div
+                className="flex-1 h-1.5 bg-[var(--border-subtle)] rounded-full overflow-hidden"
+                role="progressbar"
+                aria-valuenow={progress}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={`Project progress: ${progress}%`}
+              >
                 <motion.div
                   animate={{ width: `${progress}%` }}
                   transition={{ duration: 0.5 }}
@@ -1337,46 +1296,84 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
         })}
       </nav>
 
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="popLayout">
         {activeTab === 'Overview' && (
-          <OverviewTab
+          <motion.div
             key="overview"
-            project={project}
-            onAddTodo={handleAddTodo}
-            onToggleTodo={handleToggleTodo}
-            onRemoveTodo={handleRemoveTodo}
-            onEditTodo={handleEditTodo}
-            onReorderTodos={handleReorderTodos}
-          />
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <OverviewTab
+              project={project}
+              onAddTodo={handleAddTodo}
+              onToggleTodo={handleToggleTodo}
+              onRemoveTodo={handleRemoveTodo}
+              onEditTodo={handleEditTodo}
+              onReorderTodos={handleReorderTodos}
+            />
+          </motion.div>
         )}
         {activeTab === 'Todos' && (
-          <TodosTab
+          <motion.div
             key="todos"
-            project={project}
-            onAddTodo={handleAddTodo}
-            onToggleTodo={handleToggleTodo}
-            onRemoveTodo={handleRemoveTodo}
-            onEditTodo={handleEditTodo}
-            onReorderTodos={handleReorderTodos}
-          />
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <TodosTab
+              project={project}
+              onAddTodo={handleAddTodo}
+              onToggleTodo={handleToggleTodo}
+              onRemoveTodo={handleRemoveTodo}
+              onEditTodo={handleEditTodo}
+              onReorderTodos={handleReorderTodos}
+            />
+          </motion.div>
         )}
         {activeTab === 'Workspace' && (
-          <WorkspaceTab
+          <motion.div
             key="workspace"
-            project={project}
-            onUpdateProject={onUpdateProject}
-            onNotify={onNotify}
-          />
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <WorkspaceTab
+              project={project}
+              onUpdateProject={onUpdateProject}
+              onNotify={onNotify}
+            />
+          </motion.div>
         )}
-        {activeTab === 'Timeline' && <TimelineTab key="timeline" project={project} />}
+        {activeTab === 'Timeline' && (
+          <motion.div
+            key="timeline"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <TimelineTab project={project} />
+          </motion.div>
+        )}
         {activeTab === 'Settings' && (
-          <SettingsTab
+          <motion.div
             key="settings"
-            project={project}
-            onUpdateProject={onUpdateProject}
-            onNotify={onNotify}
-            onUnsavedChanges={setSettingsHasUnsavedChanges}
-          />
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <SettingsTab
+              project={project}
+              onUpdateProject={onUpdateProject}
+              onNotify={onNotify}
+              onUnsavedChanges={setSettingsHasUnsavedChanges}
+            />
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -1386,6 +1383,14 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
         onClose={() => setEditingTodo(null)}
         onSave={handleSaveEditedTodo}
       />
-    </motion.div>
+    </div>
   );
 }
+
+ProjectDetailView.propTypes = {
+  project: PropTypes.object.isRequired,
+  onBack: PropTypes.func.isRequired,
+  onUpdateProject: PropTypes.func.isRequired,
+  onDeleteProject: PropTypes.func.isRequired,
+  onNotify: PropTypes.func,
+};

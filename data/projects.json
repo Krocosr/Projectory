@@ -1,0 +1,97 @@
+[
+  {
+    "id": 1779350502382,
+    "goal": "A polished multi-project deadline tracker SPA",
+    "title": "Deadliner - Multi-Project Manager",
+    "timeline": [
+      {
+        "action": "Added recovery mechanism, export/import, and AnimatePresence fix",
+        "date": "2026-05-21T12:00:00Z"
+      },
+      {
+        "action": "Fixed searchParams stale closure + handleBack bug",
+        "date": "2026-05-20T10:00:00Z"
+      },
+      {
+        "action": "Analyzed pending todos and prioritized remaining work",
+        "date": "2026-05-19T10:00:00Z"
+      },
+      {
+        "action": "Created project",
+        "date": "2026-05-18T10:00:00Z"
+      }
+    ],
+    "notes": "Dogfooding project tracking Deadliner development. Uses Next.js 14 App Router, framer-motion, Tailwind CSS, @hello-pangea/dnd for drag-and-drop, and localStorage + API file backup.",
+    "lastWorked": "just now",
+    "currentFocus": "Dot Menu Positioning",
+    "status": "Active",
+    "deadline": "",
+    "assets": [
+      {
+        "name": "Local Link",
+        "url": "http://localhost:3000",
+        "addedAt": "2026-05-21T11:37:57.983Z"
+      }
+    ],
+    "description": "Client-first multi-project management SPA built with Next.js 14 App Router, framer-motion, and Tailwind CSS. Dogfooding project tracking the development of Deadliner itself.",
+    "progress": 50,
+    "todos": [
+      {
+        "id": 1779350502383,
+        "text": "Dot Menu Positioning",
+        "priority": "High",
+        "details": "",
+        "done": false,
+        "createdAt": "2026-05-18T10:00:00Z"
+      },
+      {
+        "id": 1779350502384,
+        "text": "Todo Context Menu Positioning",
+        "priority": "High",
+        "details": "",
+        "done": false,
+        "createdAt": "2026-05-18T10:00:00Z"
+      },
+      {
+        "id": 1779350502385,
+        "text": "Next Step / Current Focus Logic",
+        "priority": "Medium",
+        "details": "",
+        "done": false,
+        "createdAt": "2026-05-18T10:00:00Z"
+      },
+      {
+        "id": 1779350502386,
+        "text": "DND State / Performance / Visual",
+        "priority": "Medium",
+        "details": "",
+        "done": false,
+        "createdAt": "2026-05-18T10:00:00Z"
+      },
+      {
+        "id": 1779350502387,
+        "text": "Fuzzy Search",
+        "priority": "Low",
+        "details": "",
+        "done": false,
+        "createdAt": "2026-05-18T10:00:00Z"
+      },
+      {
+        "id": 1779350502388,
+        "text": "Navigation / Loading Bug Fix",
+        "priority": "High",
+        "details": "",
+        "done": true,
+        "createdAt": "2026-05-17T10:00:00Z"
+      }
+    ],
+    "todoCount": 5,
+    "nextStep": "Dot Menu Positioning",
+    "links": [
+      {
+        "url": "http://localhost:3000",
+        "title": "Deadliner Dev Server"
+      }
+    ]
+  }
+]

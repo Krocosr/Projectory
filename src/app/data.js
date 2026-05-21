@@ -14,7 +14,7 @@
  * ID Generation:
  * - Projects: Date.now() (guaranteed unique per creation)
  * - Todos: Date.now() + Math.random() (handles rapid creation)
- * - Seed data uses hardcoded IDs 1-8 (no conflict with user-generated IDs)
+ * - Seed data uses string IDs like 'seed-1' (no conflict with user-generated IDs)
  */
 
 export const SEED_KEY = 'deadliner_seeded_v2';
@@ -64,8 +64,8 @@ export function createProject(form) {
 /**
  * Seed Projects - Demo Data
  * 
- * Hardcoded IDs (1-8) ensure no collision with user-generated projects.
- * User projects use Date.now() which starts at ~1716000000000 (2024+).
+ * Prefixed string IDs ('seed-1' through 'seed-8') ensure no collision
+ * with user-generated projects using Date.now().
  * 
  * Loaded once per browser via SEED_KEY flag in localStorage.
  */
@@ -80,7 +80,7 @@ export const seedProjects = [
     nextStep: 'Fix Google OAuth callback',
     goal: 'Create AI storytelling platform',
     currentFocus: 'Authentication flow',
-    deadline: 'Jun 15',
+    deadline: '2026-06-15',
     description: 'A platform where users can generate interactive stories using AI. Features branching narratives, character generation, and collaborative editing.',
     todos: [
       { id: 101, text: 'Fix Google OAuth callback', priority: 'High', done: false, createdAt: '2026-05-18T10:00:00Z' },
@@ -112,7 +112,7 @@ export const seedProjects = [
     nextStep: 'Design case study section',
     goal: 'Modern portfolio with case studies',
     currentFocus: 'Visual design system',
-    deadline: 'Jul 1',
+    deadline: '2026-07-01',
     description: 'Rebuilding personal portfolio with a focus on case study narratives and polished interaction design.',
     todos: [
       { id: 201, text: 'Design case study section', priority: 'High', done: false, createdAt: '2026-05-15T10:00:00Z' },
@@ -161,7 +161,7 @@ export const seedProjects = [
     nextStep: 'Brainstorm core mechanic',
     goal: '72-hour game jam project',
     currentFocus: 'Concept phase',
-    deadline: 'Aug 20',
+    deadline: '2026-08-20',
     description: 'A small experimental game built within 72 hours. Theme TBD — aiming for something narrative-driven.',
     todos: [
       { id: 401, text: 'Brainstorm core mechanic', priority: 'High', done: false, createdAt: '2026-05-06T10:00:00Z' },
@@ -184,7 +184,7 @@ export const seedProjects = [
     nextStep: 'Write documentation',
     goal: 'File watcher + build tool',
     currentFocus: 'Polish and docs',
-    deadline: 'May 25',
+    deadline: '2026-05-25',
     description: 'A fast file-watching CLI tool with build pipeline integration, written in Rust.',
     todos: [
       { id: 501, text: 'Write documentation', priority: 'High', done: false, createdAt: '2026-05-15T10:00:00Z' },
@@ -233,7 +233,7 @@ export const seedProjects = [
     nextStep: 'Research WebGL audio analysis',
     goal: 'Real-time audio visualizer with retro aesthetic',
     currentFocus: 'Technical research',
-    deadline: 'Sep 1',
+    deadline: '2026-09-01',
     description: 'Browser-based music visualizer with synthwave/outrun aesthetic using WebGL and audio analysis.',
     todos: [
       { id: 701, text: 'Research WebGL audio analysis', priority: 'High', done: false, createdAt: '2026-05-13T10:00:00Z' },
@@ -256,7 +256,7 @@ export const seedProjects = [
     nextStep: 'Implement rate limiting middleware',
     goal: 'Centralized API gateway for microservices',
     currentFocus: 'Rate limiting and auth middleware',
-    deadline: 'Jun 30',
+    deadline: '2026-06-30',
     description: 'A lightweight API gateway that handles routing, authentication, rate limiting, and logging for microservice backends.',
     todos: [
       { id: 801, text: 'Implement rate limiting middleware', priority: 'High', done: false, createdAt: '2026-05-20T08:00:00Z' },

@@ -1,14 +1,14 @@
 'use client';
-import { useState, useMemo, useEffect, useCallback, Suspense, lazy } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef, useDeferredValue, Suspense, lazy } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import DashboardHeader from '@/components/DashboardHeader';
 import NewProjectModal from '@/components/NewProjectModal';
 import ToastContainer, { useToast } from '@/components/Toast';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import ProjectCard from '@/components/ProjectCard';
 import { seedProjects, SEED_KEY, createProject } from '@/app/data';
-import { loadProjects, saveProjects } from '@/lib/storage';
+import { loadProjects, saveProjects, recoverFromApi, exportToFile, importFromFile } from '@/lib/storage';
 
 // Lazy load only the heavy ProjectDetailView component
 // ProjectCard is small (~210 lines) and used frequently, so keep it eager for better UX
@@ -98,70 +98,75 @@ function DashboardContent() {
   const [projects, setProjects] = useState([]);
   const [activeFilter, setActiveFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const deferredSearch = useDeferredValue(searchQuery);
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
   const [ready, setReady] = useState(false);
   const { toasts, addToast, dismissToast } = useToast();
+  const lastFocusedCardIdRef = useRef(null);
+  const pendingNavigateHomeRef = useRef(false);
 
-  // Load from localStorage once
+  // Load from localStorage once, with API recovery fallback
   useEffect(() => {
     const stored = loadProjects();
     if (stored && stored.length > 0) {
       setProjects(stored);
-    } else if (!localStorage.getItem(SEED_KEY)) {
-      localStorage.setItem(SEED_KEY, 'true');
-      setProjects(seedProjects);
-      const result = saveProjects(seedProjects);
-      if (!result.success) {
-        addToast(result.error || 'Failed to save initial data', 'error');
-      }
+      setReady(true);
+      return;
     }
-    setReady(true);
+
+    // localStorage is empty — try to recover from server-side API backup
+    recoverFromApi().then((recovered) => {
+      if (recovered && recovered.length > 0) {
+        setProjects(recovered);
+        addToast('Projects restored from server backup', 'info');
+      } else if (!localStorage.getItem(SEED_KEY)) {
+        localStorage.setItem(SEED_KEY, 'true');
+        setProjects(seedProjects);
+        const result = saveProjects(seedProjects);
+        if (!result.success) {
+          addToast(result.error || 'Failed to save initial data', 'error');
+        }
+      }
+      setReady(true);
+    });
   }, [addToast]);
 
   // Sync selected project when URL changes (handles browser back/forward)
+  const projectParam = searchParams.get('project');
   useEffect(() => {
     if (!ready) return;
-    const projectId = searchParams.get('project');
-    if (projectId) {
-      // Support both string IDs (seed-*) and numeric IDs (user projects)
-      const found = projects.find((p) => String(p.id) === projectId);
+    console.log('[nav] searchParams effect | ready:', ready, '| projectParam:', projectParam, '| projects.length:', projects.length, '| pendingNavigateHome:', pendingNavigateHomeRef.current);
+    if (projectParam) {
+      pendingNavigateHomeRef.current = false;
+      const found = projects.find((p) => String(p.id) === projectParam);
       if (found) {
         setSelectedProject(found);
       } else {
-        // Project ID in URL but not found — go to dashboard
         setSelectedProject(null);
         router.push('/', { scroll: false });
       }
-    } else {
-      // No ?project= param — always go to dashboard
+    } else if (pendingNavigateHomeRef.current) {
+      pendingNavigateHomeRef.current = false;
       setSelectedProject(null);
     }
-  }, [searchParams, ready, router, projects]);
-
-  const persistProjects = useCallback((updated) => {
-    setProjects(updated);
-    const result = saveProjects(updated);
-    if (!result.success) {
-      addToast(result.error || 'Failed to save changes', 'error');
-    }
-  }, [addToast]);
+  }, [projectParam, ready, projects, router]);
 
   const filteredProjects = useMemo(() => {
     let list = projects;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
+    if (deferredSearch.trim()) {
+      const q = deferredSearch.toLowerCase();
       list = list.filter((p) =>
-        p.title.toLowerCase().includes(q) ||
-        p.description?.toLowerCase().includes(q) ||
-        p.goal?.toLowerCase().includes(q)
+        (p.title || '').toLowerCase().includes(q) ||
+        (p.description || '').toLowerCase().includes(q) ||
+        (p.goal || '').toLowerCase().includes(q)
       );
     }
     if (activeFilter === 'All') return list;
     if (activeFilter === 'Ideas') return list.filter((p) => p.status === 'Incubating' || p.status === 'Waiting');
     if (activeFilter === 'Archived') return list.filter((p) => p.status === 'Archived');
     return list.filter((p) => p.status === activeFilter);
-  }, [projects, activeFilter, searchQuery]);
+  }, [projects, activeFilter, deferredSearch]);
 
   const projectCounts = useMemo(() => {
     const counts = { total: projects.length };
@@ -197,15 +202,18 @@ function DashboardContent() {
     setSelectedProject((current) => (current?.id === updated.id ? updated : current));
   }, [addToast]);
 
-  const handleCardClick = (project) => {
+  const handleCardClick = useCallback((project) => {
     if (!project) return;
-    // Store the focused card ID before navigating
-    setLastFocusedCardId(project.id);
+    console.log('[nav] handleCardClick | id:', project.id, '| title:', project.title);
+    pendingNavigateHomeRef.current = false;
+    lastFocusedCardIdRef.current = project.id;
     setSelectedProject(project);
     router.push(`/?project=${project.id}`, { scroll: false });
-  };
+  }, [router]);
 
   const handleDeleteProject = useCallback((id) => {
+    pendingNavigateHomeRef.current = true;
+    setSelectedProject(null);
     setProjects((current) => {
       const updated = current.filter((p) => p.id !== id);
       const result = saveProjects(updated);
@@ -214,25 +222,49 @@ function DashboardContent() {
       }
       return updated;
     });
-    // handleBack navigates to / which clears selectedProject via searchParams effect
     router.push('/', { scroll: false });
     addToast('Project deleted', 'error');
-  }, [router, addToast]);
+  }, [router, addToast, setSelectedProject]);
 
   const handleBack = useCallback(() => {
-    // Just push to /; the searchParams effect will clear selectedProject
+    pendingNavigateHomeRef.current = true;
+    setSelectedProject(null);
     router.push('/', { scroll: false });
     
     // Restore focus to the last focused card after navigation
-    if (lastFocusedCardId) {
-      setTimeout(() => {
-        const cardElement = document.querySelector(`[data-project-id="${lastFocusedCardId}"]`);
+    const focusedId = lastFocusedCardIdRef.current;
+    if (focusedId) {
+      let attempts = 0;
+      const tryFocus = () => {
+        const cardElement = document.querySelector(`[data-project-id="${focusedId}"]`);
         if (cardElement) {
           cardElement.focus();
+          return;
         }
-      }, 100);
+        if (++attempts < 20) requestAnimationFrame(tryFocus);
+      };
+      requestAnimationFrame(tryFocus);
     }
-  }, [router, lastFocusedCardId]);
+  }, [setSelectedProject, router]);
+
+  const handleExport = useCallback(() => {
+    exportToFile(projects);
+    addToast('Projects exported');
+  }, [projects, addToast]);
+
+  const handleImport = useCallback(async (file) => {
+    const { projects: imported, error } = await importFromFile(file);
+    if (error) {
+      addToast(error, 'error');
+      return;
+    }
+    if (!window.confirm(`Replace all projects with ${imported.length} projects from the backup?`)) return;
+    setProjects(imported);
+    const result = saveProjects(imported);
+    addToast(result.success ? `Imported ${imported.length} projects` : (result.error || 'Import failed'), result.success ? 'info' : 'error');
+  }, [addToast]);
+
+  console.log('[render] DashboardContent | ready:', ready, '| selectedProject:', selectedProject?.id || null, '| projects:', projects.length);
 
   return (
     <div className="min-h-screen">
@@ -240,8 +272,13 @@ function DashboardContent() {
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
       <div className="max-w-6xl mx-auto px-6 py-10">
-        <AnimatePresence mode="wait">
-          {selectedProject ? (
+        {selectedProject ? (
+          <motion.div
+            key={`detail-${selectedProject.id}`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.15 }}
+          >
             <ErrorBoundary 
               context="ProjectDetailView"
               errorMessage="Failed to load project details. Try going back to the dashboard."
@@ -249,7 +286,6 @@ function DashboardContent() {
             >
               <Suspense fallback={<div className="min-h-[60vh] flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-[var(--accent-clay)] border-t-transparent animate-spin" /></div>}>
                 <ProjectDetailView
-                  key={`detail-${selectedProject.id}`}
                   project={selectedProject}
                   onBack={handleBack}
                   onUpdateProject={handleUpdateProject}
@@ -258,20 +294,16 @@ function DashboardContent() {
                 />
               </Suspense>
             </ErrorBoundary>
-          ) : (
-            <motion.div
-              key="grid"
-              initial={false}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-            >
+          </motion.div>
+        ) : (<>
               <DashboardHeader
                 activeFilter={activeFilter}
                 onFilterChange={setActiveFilter}
                 projectCounts={projectCounts}
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
+                onExport={handleExport}
+                onImport={handleImport}
               />
 
               {!ready ? (
@@ -313,9 +345,8 @@ function DashboardContent() {
                   </button>
                 </div>
               )}
-            </motion.div>
+            </>
           )}
-        </AnimatePresence>
       </div>
 
       <NewProjectModal

@@ -8,10 +8,11 @@ export const Z_INDEX = {
   FAB: 40,
   MODAL: 50,
   CONTEXT_MENU: 9999,
+  TOAST: 9999,
 };
 
 // Project statuses
-export const STATUSES = ['Active', 'Paused', 'Incubating', 'Waiting', 'Finished'];
+export const STATUSES = ['Active', 'Paused', 'Incubating', 'Waiting', 'Finished', 'Archived'];
 
 // Status colors
 export const STATUS_COLORS = {

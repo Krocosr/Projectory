@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PropTypes from 'prop-types';
 import { STATUSES, STATUS_STYLES, Z_INDEX } from '@/lib/constants';
@@ -114,35 +114,62 @@ function ContextMenu({ x, y, project, onEdit, onChangeStatus, onDelete, onClose 
   );
 }
 
-export default function ProjectCard({ project, onClick, onUpdateProject, onDeleteProject }) {
+function ProjectCard({ project, onClick, onUpdateProject, onDeleteProject }) {
   const [contextMenu, setContextMenu] = useState(null);
+  const cardRef = useRef(null);
   const status = project.status;
 
-  const handleContextMenu = (e) => {
-    e.preventDefault();
-    // Clamp to viewport
+  const openContextMenuAt = useCallback((x, y) => {
     const menuW = 208;
     const menuH = 280;
-    const x = Math.min(e.clientX, window.innerWidth - menuW - 8);
-    const y = Math.min(e.clientY, window.innerHeight - menuH - 8);
-    setContextMenu({ x, y });
-  };
+    const cx = Math.min(x, window.innerWidth - menuW - 8);
+    const cy = Math.min(y, window.innerHeight - menuH - 8);
+    setContextMenu({ x: cx, y: cy });
+  }, []);
 
-  const handleChangeStatus = (newStatus) => {
+  const handleContextMenu = useCallback((e) => {
+    e.preventDefault();
+    openContextMenuAt(e.clientX, e.clientY);
+  }, [openContextMenuAt]);
+
+  const handleKeyDown = useCallback((e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onClick?.(project);
+    }
+    if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
+      e.preventDefault();
+      const rect = cardRef.current?.getBoundingClientRect();
+      if (rect) {
+        openContextMenuAt(rect.right - 100, rect.bottom - 40);
+      }
+    }
+  }, [onClick, project, openContextMenuAt]);
+
+  const handleMoreOptions = useCallback((e) => {
+    e.stopPropagation();
+    const rect = cardRef.current?.getBoundingClientRect();
+    if (rect) {
+      openContextMenuAt(rect.right - 100, rect.bottom - 40);
+    }
+  }, [openContextMenuAt]);
+
+  const handleChangeStatus = useCallback((newStatus) => {
     onUpdateProject?.({ ...project, status: newStatus });
-  };
+  }, [onUpdateProject, project]);
 
-  const handleDelete = () => {
+  const handleDelete = useCallback(() => {
     if (window.confirm(`Delete "${project.title}"? This cannot be undone.`)) {
       onDeleteProject?.(project.id);
     }
-  };
+  }, [onDeleteProject, project.id, project.title]);
 
   return (
     <>
       <motion.article
         ref={cardRef}
         layout
+        layoutId={String(project.id)}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
@@ -159,9 +186,22 @@ export default function ProjectCard({ project, onClick, onUpdateProject, onDelet
         <div className="relative bg-[var(--bg-card)] rounded-2xl p-6 border border-[var(--border-subtle)] shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-hover)] transition-shadow duration-300 h-full flex flex-col">
           <div className="flex items-start justify-between mb-3">
             <StatusBadge status={status} />
-            <span className="text-xs text-[var(--text-muted)] tabular-nums shrink-0 ml-3" title={project.lastWorked}>
-              {project.lastWorked}
-            </span>
+            <div className="flex items-center gap-1 shrink-0 ml-3">
+              <span className="text-xs text-[var(--text-muted)] tabular-nums" title={project.lastWorked}>
+                {project.lastWorked}
+              </span>
+              <button
+                onClick={handleMoreOptions}
+                className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 p-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--border-subtle)] transition-all"
+                aria-label="More options"
+                aria-haspopup="menu"
+                tabIndex={-1}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v.01M12 12v.01M12 19v.01" />
+                </svg>
+              </button>
+            </div>
           </div>
 
           <h3 className="font-display text-xl font-semibold text-[var(--text-primary)] leading-tight mb-2">
@@ -178,7 +218,14 @@ export default function ProjectCard({ project, onClick, onUpdateProject, onDelet
               <span className="text-[var(--text-muted)] uppercase tracking-wider font-medium">Progress</span>
               <span className="font-semibold text-[var(--text-secondary)] tabular-nums">{project.progress}%</span>
             </div>
-            <div className="h-1.5 bg-[var(--border-subtle)] rounded-full overflow-hidden">
+            <div
+              className="h-1.5 bg-[var(--border-subtle)] rounded-full overflow-hidden"
+              role="progressbar"
+              aria-valuenow={project.progress}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={`Project progress: ${project.progress}%`}
+            >
               <motion.div
                 initial={false}
                 animate={{ width: `${project.progress}%` }}
@@ -216,3 +263,23 @@ export default function ProjectCard({ project, onClick, onUpdateProject, onDelet
     </>
   );
 }
+
+ProjectCard.propTypes = {
+  project: PropTypes.object.isRequired,
+  onClick: PropTypes.func,
+  onUpdateProject: PropTypes.func,
+  onDeleteProject: PropTypes.func,
+};
+
+export default memo(ProjectCard, (prevProps, nextProps) => {
+  return (
+    prevProps.project.id === nextProps.project.id &&
+    prevProps.project.progress === nextProps.project.progress &&
+    prevProps.project.status === nextProps.project.status &&
+    prevProps.project.lastWorked === nextProps.project.lastWorked &&
+    prevProps.project.title === nextProps.project.title &&
+    prevProps.project.nextStep === nextProps.project.nextStep &&
+    prevProps.project.todoCount === nextProps.project.todoCount &&
+    prevProps.project.deadline === nextProps.project.deadline
+  );
+});
