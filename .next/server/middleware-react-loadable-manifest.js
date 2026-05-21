@@ -1,0 +1,1 @@
+self.__REACT_LOADABLE_MANIFEST="{\"app\\\\page.js -> @/components/ProjectDetailView\":{\"id\":\"app\\\\page.js -> @/components/ProjectDetailView\",\"files\":[\"static/chunks/_app-pages-browser_src_components_ProjectDetailView_jsx.js\"]}}"
