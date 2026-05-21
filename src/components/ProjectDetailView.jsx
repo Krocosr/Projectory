@@ -2,9 +2,9 @@
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { createTodo } from '@/lib/storage';
+import { createTodo, recalculateProject } from '@/lib/storage';
 import PropTypes from 'prop-types';
-import { STATUSES, STATUS_COLORS, STATUS_BG, PRIORITY_STYLES, AUTO_SAVE_DEBOUNCE_MS } from '@/lib/constants';
+import { STATUSES, STATUS_COLORS, STATUS_BG, PRIORITY_STYLES, AUTO_SAVE_DEBOUNCE_MS, Z_INDEX } from '@/lib/constants';
 import { formatDeadlineForDisplay, formatRelativeTime, toDateInputValue } from '@/lib/dateUtils';
 
 const TABS = ['Overview', 'Todos', 'Workspace', 'Timeline', 'Settings'];
@@ -28,10 +28,7 @@ function computeProgress(todos) {
 function computeNextStepText(todos) {
   const active = (todos || []).filter((t) => !t.done);
   if (active.length <= 1) return '-';
-  const firstActive = active[0];
-  const nextHigh = active.find((t) => t.priority === 'High');
-  if (nextHigh && nextHigh.id !== firstActive.id) return nextHigh.text;
-  return active[1]?.text || '-';
+  return active[1].text;
 }
 
 function getFirstActiveTodo(todos) {
@@ -54,6 +51,7 @@ function DetailRow({ label, value }) {
 const TodoItem = memo(function TodoItem({ todo, onToggle, onRemove, onEdit, dragHandleProps }) {
   const [expanded, setExpanded] = useState(false);
   const [contextMenu, setContextMenu] = useState(null);
+  const menuRef = useRef(null);
 
   const handleContextMenu = (e) => {
     e.preventDefault();
@@ -62,16 +60,14 @@ const TodoItem = memo(function TodoItem({ todo, onToggle, onRemove, onEdit, drag
     let x = e.clientX;
     let y = e.clientY;
     
-    // Account for scroll offset and adjust if menu would go off-screen
-    const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
-    const scrollY = window.pageYOffset || document.documentElement.scrollTop;
-    
     if (x + menuWidth > window.innerWidth) {
       x = window.innerWidth - menuWidth - 10;
     }
     if (y + menuHeight > window.innerHeight) {
       y = window.innerHeight - menuHeight - 10;
     }
+    if (x < 4) x = 4;
+    if (y < 4) y = 4;
     
     setContextMenu({ x, y });
   };
@@ -80,9 +76,13 @@ const TodoItem = memo(function TodoItem({ todo, onToggle, onRemove, onEdit, drag
 
   useEffect(() => {
     if (contextMenu) {
-      const handleClick = () => closeContextMenu();
-      document.addEventListener('click', handleClick);
-      return () => document.removeEventListener('click', handleClick);
+      const handleClose = (e) => {
+        if (menuRef.current && !menuRef.current.contains(e.target)) {
+          closeContextMenu();
+        }
+      };
+      document.addEventListener('mousedown', handleClose);
+      return () => document.removeEventListener('mousedown', handleClose);
     }
   }, [contextMenu]);
 
@@ -175,8 +175,9 @@ const TodoItem = memo(function TodoItem({ todo, onToggle, onRemove, onEdit, drag
       {/* Context Menu */}
       {contextMenu && (
         <div
-          className="fixed bg-white rounded-lg shadow-lg border border-[var(--border-subtle)] py-1 z-50 min-w-[140px]"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
+          ref={menuRef}
+          className="fixed bg-white rounded-lg shadow-lg border border-[var(--border-subtle)] py-1 min-w-[140px]"
+          style={{ left: contextMenu.x, top: contextMenu.y, zIndex: Z_INDEX.CONTEXT_MENU }}
         >
           <button
             onClick={handleEdit}
@@ -217,9 +218,6 @@ const TodoItem = memo(function TodoItem({ todo, onToggle, onRemove, onEdit, drag
     prevProps.todo.done === nextProps.todo.done &&
     prevProps.todo.priority === nextProps.todo.priority &&
     prevProps.todo.details === nextProps.todo.details &&
-    prevProps.onToggle === nextProps.onToggle &&
-    prevProps.onRemove === nextProps.onRemove &&
-    prevProps.onEdit === nextProps.onEdit &&
     prevProps.dragHandleProps === nextProps.dragHandleProps
   );
 });
@@ -315,12 +313,7 @@ function DraggableTodoList({ todos, onToggle, onRemove, onEdit, onReorder }) {
                   <div 
                     ref={provided.innerRef}
                     {...provided.draggableProps}
-                    style={{
-                      ...provided.draggableProps.style,
-                      transform: snapshot.isDragging 
-                        ? provided.draggableProps.style?.transform 
-                        : 'translate(0px, 0px)',
-                    }}
+                    style={provided.draggableProps.style}
                     className={`transition-shadow ${snapshot.isDragging ? 'shadow-lg ring-2 ring-[var(--accent-clay)]/30 bg-white rounded-lg' : ''}`}
                   >
                     <TodoItem
@@ -473,15 +466,14 @@ function OverviewTab({ project, onAddTodo, onToggleTodo, onRemoveTodo, onEditTod
           aria-valuemax={100}
           aria-label={`Project progress: ${progress}%`}
         >
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${progress}%` }}
-            transition={{ duration: 1, ease: [0.25, 0.1, 0.25, 1] }}
-            className="h-full rounded-full"
-            style={{
-              background: 'linear-gradient(90deg, var(--accent-clay), var(--accent-clay-light))',
-            }}
-          />
+              <motion.div
+                animate={{ width: `${progress}%` }}
+                transition={{ duration: 1, ease: [0.25, 0.1, 0.25, 1] }}
+                className="h-full rounded-full"
+                style={{
+                  background: 'linear-gradient(90deg, var(--accent-clay), var(--accent-clay-light))',
+                }}
+              />
         </div>
       </div>
 
@@ -517,42 +509,106 @@ function OverviewTab({ project, onAddTodo, onToggleTodo, onRemoveTodo, onEditTod
 
 function TodosTab({ project, onAddTodo, onToggleTodo, onRemoveTodo, onEditTodo, onReorderTodos }) {
   const [section, setSection] = useState('Active');
+  const [sortBy, setSortBy] = useState('default');
 
   const { activeTodos, doneTodos } = useMemo(() => ({
     activeTodos: (project.todos || []).filter((t) => !t.done),
     doneTodos: (project.todos || []).filter((t) => t.done),
   }), [project.todos]);
-  const displayedTodos = section === 'Active' ? activeTodos : doneTodos;
 
-  const handleReorderActive = (reordered) => {
+  const sortTodos = useCallback((todos) => {
+    if (sortBy === 'default' || !todos) return todos;
+    const sorted = [...todos];
+    switch (sortBy) {
+      case 'priority-high':
+        sorted.sort((a, b) => {
+          const rank = { High: 0, Medium: 1, Low: 2 };
+          return rank[a.priority] - rank[b.priority];
+        });
+        break;
+      case 'priority-low':
+        sorted.sort((a, b) => {
+          const rank = { High: 2, Medium: 1, Low: 0 };
+          return rank[a.priority] - rank[b.priority];
+        });
+        break;
+      case 'alpha-asc':
+        sorted.sort((a, b) => a.text.localeCompare(b.text));
+        break;
+      case 'alpha-desc':
+        sorted.sort((a, b) => b.text.localeCompare(a.text));
+        break;
+      case 'newest':
+        sorted.sort((a, b) => b.id - a.id);
+        break;
+      case 'oldest':
+        sorted.sort((a, b) => a.id - b.id);
+        break;
+    }
+    return sorted;
+  }, [sortBy]);
+
+  const displayedTodos = useMemo(() => {
+    const todos = section === 'Active' ? activeTodos : doneTodos;
+    return sortTodos(todos);
+  }, [section, activeTodos, doneTodos, sortTodos]);
+
+  const handleReorderActive = useCallback((reordered) => {
     const done = (project.todos || []).filter((t) => t.done);
     onReorderTodos([...reordered, ...done]);
-  };
+  }, [project.todos, onReorderTodos]);
 
-  const handleReorderDone = (reordered) => {
+  const handleReorderDone = useCallback((reordered) => {
     const active = (project.todos || []).filter((t) => !t.done);
     onReorderTodos([...active, ...reordered]);
-  };
+  }, [project.todos, onReorderTodos]);
+
+  const SORT_OPTIONS = [
+    { value: 'default', label: 'Default' },
+    { value: 'priority-high', label: 'Priority \u2193' },
+    { value: 'priority-low', label: 'Priority \u2191' },
+    { value: 'alpha-asc', label: 'A \u2192 Z' },
+    { value: 'alpha-desc', label: 'Z \u2192 A' },
+    { value: 'newest', label: 'Newest' },
+    { value: 'oldest', label: 'Oldest' },
+  ];
 
   return (
     <div>
-      <div className="flex items-center gap-6 mb-5 border-b border-[var(--border-subtle)] pb-3">
-        {['Active', 'Done'].map((s) => (
-          <button
-            key={s}
-            onClick={() => setSection(s)}
-            className={`text-xs font-medium uppercase tracking-wider pb-3 -mb-3 transition-colors ${
-              section === s
-                ? 'text-[var(--accent-clay)] border-b-2 border-[var(--accent-clay)]'
-                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-            }`}
+      <div className="flex items-center justify-between mb-5 border-b border-[var(--border-subtle)] pb-3">
+        <div className="flex items-center gap-6">
+          {['Active', 'Done'].map((s) => (
+            <button
+              key={s}
+              onClick={() => setSection(s)}
+              className={`text-xs font-medium uppercase tracking-wider pb-3 -mb-3 transition-colors ${
+                section === s
+                  ? 'text-[var(--accent-clay)] border-b-2 border-[var(--accent-clay)]'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+              }`}
+            >
+              {s}
+              <span className="ml-1.5 text-[10px] opacity-60">
+                {s === 'Done' ? doneTodos.length : activeTodos.length}
+              </span>
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-1.5">
+          <svg className="w-3 h-3 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h6l-4 5h4l-5 7h6m3-16l4 5h-4l5 7h-6" />
+          </svg>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="text-[11px] px-1.5 py-0.5 rounded-md border border-[var(--border-subtle)] bg-white text-[var(--text-secondary)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 appearance-none cursor-pointer hover:border-[var(--text-muted)] transition-colors"
+            aria-label="Sort todos"
           >
-            {s}
-            <span className="ml-1.5 text-[10px] opacity-60">
-              {s === 'Done' ? doneTodos.length : activeTodos.length}
-            </span>
-          </button>
-        ))}
+            {SORT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {displayedTodos.length > 0 ? (
@@ -1053,6 +1109,13 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
   const [editingTodo, setEditingTodo] = useState(null);
   const [settingsHasUnsavedChanges, setSettingsHasUnsavedChanges] = useState(false);
 
+  const projectRef = useRef(project);
+  const onUpdateProjectRef = useRef(onUpdateProject);
+  const onNotifyRef = useRef(onNotify);
+  projectRef.current = project;
+  onUpdateProjectRef.current = onUpdateProject;
+  onNotifyRef.current = onNotify;
+
   const handleTabChange = useCallback((newTab) => {
     console.log('[nav] tab change | from:', activeTab, '| to:', newTab);
     if (activeTab === 'Settings' && settingsHasUnsavedChanges) {
@@ -1066,46 +1129,55 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
   }, [activeTab, settingsHasUnsavedChanges]);
 
   const handleAddTodo = useCallback((text, priority, details) => {
+    const p = projectRef.current;
+    const onUpdate = onUpdateProjectRef.current;
+    const onNotify = onNotifyRef.current;
     const todo = createTodo(text, priority, details);
-    const newTodos = [...(project.todos || []), todo];
+    const newTodos = [...(p.todos || []), todo];
     
     const firstActive = getFirstActiveTodo(newTodos);
     const nextStepText = computeNextStepText(newTodos);
     
     const updated = {
-      ...project,
+      ...p,
       todos: newTodos,
       todoCount: newTodos.filter((t) => !t.done).length,
       progress: computeProgress(newTodos),
-      currentFocus: project.currentFocus || (firstActive ? firstActive.text : text),
-      nextStep: project.nextStep || nextStepText,
+      currentFocus: firstActive ? firstActive.text : 'All done!',
+      nextStep: p.nextStep || nextStepText,
       lastWorked: 'just now',
-      timeline: [...(project.timeline || []), { date: new Date().toISOString(), action: `Added todo: ${text}` }],
+      timeline: [...(p.timeline || []), { date: new Date().toISOString(), action: `Added todo: ${text}` }],
     };
-    onUpdateProject(updated);
+    onUpdate(updated);
     onNotify?.('Todo added');
-  }, [project, onUpdateProject, onNotify]);
+  }, []);
 
   const handleEditTodo = useCallback((todo) => {
     setEditingTodo(todo);
   }, []);
 
   const handleSaveEditedTodo = useCallback((editedTodo) => {
-    const newTodos = (project.todos || []).map((t) =>
+    const p = projectRef.current;
+    const onUpdate = onUpdateProjectRef.current;
+    const onNotify = onNotifyRef.current;
+    const newTodos = (p.todos || []).map((t) =>
       t.id === editedTodo.id ? editedTodo : t
     );
-    const updated = {
-      ...project,
+    const updated = recalculateProject({
+      ...p,
       todos: newTodos,
       lastWorked: 'just now',
-      timeline: [...(project.timeline || []), { date: new Date().toISOString(), action: `Updated todo: ${editedTodo.text}` }],
-    };
-    onUpdateProject(updated);
+      timeline: [...(p.timeline || []), { date: new Date().toISOString(), action: `Updated todo: ${editedTodo.text}` }],
+    });
+    onUpdate(updated);
     onNotify?.('Todo updated');
-  }, [project, onUpdateProject, onNotify]);
+  }, []);
 
   const handleToggleTodo = useCallback((todoId) => {
-    const newTodos = (project.todos || []).map((t) =>
+    const p = projectRef.current;
+    const onUpdate = onUpdateProjectRef.current;
+    const onNotify = onNotifyRef.current;
+    const newTodos = (p.todos || []).map((t) =>
       t.id === todoId ? { ...t, done: !t.done } : t
     );
     const toggled = newTodos.find((t) => t.id === todoId);
@@ -1113,56 +1185,64 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
     const nextStepText = computeNextStepText(newTodos);
     
     const updated = {
-      ...project,
+      ...p,
       todos: newTodos,
       todoCount: newTodos.filter((t) => !t.done).length,
       progress: computeProgress(newTodos),
       currentFocus: firstActive ? firstActive.text : 'All done!',
       nextStep: nextStepText,
       lastWorked: 'just now',
-      timeline: [...(project.timeline || []), {
+      timeline: [...(p.timeline || []), {
         date: new Date().toISOString(),
         action: `Marked "${toggled?.text || 'unknown'}" as ${toggled?.done ? 'done' : 'pending'}`,
       }],
     };
-    onUpdateProject(updated);
+    onUpdate(updated);
     onNotify?.(toggled?.done ? 'Todo completed' : 'Todo reopened');
-  }, [project, onUpdateProject, onNotify]);
+  }, []);
 
   const handleRemoveTodo = useCallback((todoId) => {
-    const removed = (project.todos || []).find((t) => t.id === todoId);
-    const newTodos = (project.todos || []).filter((t) => t.id !== todoId);
+    const p = projectRef.current;
+    const onUpdate = onUpdateProjectRef.current;
+    const onNotify = onNotifyRef.current;
+    const removed = (p.todos || []).find((t) => t.id === todoId);
+    const newTodos = (p.todos || []).filter((t) => t.id !== todoId);
     const firstActive = getFirstActiveTodo(newTodos);
     const nextStepText = computeNextStepText(newTodos);
     
     const updated = {
-      ...project,
+      ...p,
       todos: newTodos,
       todoCount: newTodos.filter((t) => !t.done).length,
       progress: computeProgress(newTodos),
-      currentFocus: firstActive ? firstActive.text : (newTodos.length === 0 ? 'Getting started' : 'All done!'),
+      currentFocus: firstActive ? firstActive.text : 'All done!',
       nextStep: nextStepText,
       lastWorked: 'just now',
-      timeline: [...(project.timeline || []), { date: new Date().toISOString(), action: `Removed todo: "${removed?.text}"` }],
+      timeline: [...(p.timeline || []), { date: new Date().toISOString(), action: `Removed todo: "${removed?.text}"` }],
     };
-    onUpdateProject(updated);
+    onUpdate(updated);
     onNotify?.('Todo removed');
-  }, [project, onUpdateProject, onNotify]);
+  }, []);
 
   const handleReorderTodos = useCallback((reorderedTodos) => {
+    const p = projectRef.current;
+    const onUpdate = onUpdateProjectRef.current;
     const updated = {
-      ...project,
+      ...p,
       todos: reorderedTodos,
     };
-    onUpdateProject(updated);
-  }, [project, onUpdateProject]);
+    onUpdate(updated);
+  }, []);
 
   const handleDeleteProject = useCallback(() => {
-    if (window.confirm(`Delete "${project.title}"? This cannot be undone.`)) {
-      onDeleteProject?.(project.id);
+    const p = projectRef.current;
+    const onDelete = onDeleteProject;
+    const onNotify = onNotifyRef.current;
+    if (window.confirm(`Delete "${p.title}"? This cannot be undone.`)) {
+      onDelete?.(p.id);
       onNotify?.('Project deleted');
     }
-  }, [onDeleteProject, onNotify, project.id, project.title]);
+  }, [onDeleteProject]);
 
   // Memoize progress calculation at component level
   const progress = useMemo(() => computeProgress(project.todos), [project.todos]);

@@ -121,9 +121,17 @@ function ProjectCard({ project, onClick, onUpdateProject, onDeleteProject }) {
 
   const openContextMenuAt = useCallback((x, y) => {
     const menuW = 208;
-    const menuH = 280;
-    const cx = Math.min(x, window.innerWidth - menuW - 8);
-    const cy = Math.min(y, window.innerHeight - menuH - 8);
+    const menuH = 220;
+    let cx = x;
+    let cy = y;
+    if (cx + menuW > window.innerWidth - 8) {
+      cx = window.innerWidth - menuW - 8;
+    }
+    if (cy + menuH > window.innerHeight - 8) {
+      cy = window.innerHeight - menuH - 8;
+    }
+    if (cx < 4) cx = 4;
+    if (cy < 4) cy = 4;
     setContextMenu({ x: cx, y: cy });
   }, []);
 
@@ -141,7 +149,7 @@ function ProjectCard({ project, onClick, onUpdateProject, onDeleteProject }) {
       e.preventDefault();
       const rect = cardRef.current?.getBoundingClientRect();
       if (rect) {
-        openContextMenuAt(rect.right - 100, rect.bottom - 40);
+        openContextMenuAt(rect.right - 100, rect.top + 40);
       }
     }
   }, [onClick, project, openContextMenuAt]);
@@ -150,7 +158,7 @@ function ProjectCard({ project, onClick, onUpdateProject, onDeleteProject }) {
     e.stopPropagation();
     const rect = cardRef.current?.getBoundingClientRect();
     if (rect) {
-      openContextMenuAt(rect.right - 100, rect.bottom - 40);
+      openContextMenuAt(rect.right - 100, rect.top + 40);
     }
   }, [openContextMenuAt]);
 

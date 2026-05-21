@@ -74,16 +74,17 @@ export default function NewProjectModal({ isOpen, onClose, onSave }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+            transition={{ duration: 0.15 }}
+            className="absolute inset-0 bg-black/30"
             onClick={onClose}
           />
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            initial={{ opacity: 0, scale: 0.92, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
+            exit={{ opacity: 0, scale: 0.92, y: 12 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 35, mass: 0.8 }}
             className="relative w-full max-w-lg bg-[var(--bg-card)] rounded-2xl border border-[var(--border-subtle)] shadow-[var(--shadow-modal)] p-8 overflow-hidden"
+            style={{ willChange: 'transform, opacity' }}
           >
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-display text-2xl font-bold text-[var(--text-primary)]">

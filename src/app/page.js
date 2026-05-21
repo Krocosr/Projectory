@@ -156,11 +156,10 @@ function DashboardContent() {
     let list = projects;
     if (deferredSearch.trim()) {
       const q = deferredSearch.toLowerCase();
-      list = list.filter((p) =>
-        (p.title || '').toLowerCase().includes(q) ||
-        (p.description || '').toLowerCase().includes(q) ||
-        (p.goal || '').toLowerCase().includes(q)
-      );
+      list = list.filter((p) => {
+        const searchText = [p.title, p.description, p.goal].filter(Boolean).join(' ').toLowerCase();
+        return searchText.includes(q);
+      });
     }
     if (activeFilter === 'All') return list;
     if (activeFilter === 'Ideas') return list.filter((p) => p.status === 'Incubating' || p.status === 'Waiting');

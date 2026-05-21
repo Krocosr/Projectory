@@ -29,7 +29,8 @@ export function loadProjects() {
     }
     
     // Return just the projects array for backward compatibility
-    return migrated.projects;
+    // Recalculate derived data from todos to ensure currentFocus, nextStep, progress, todoCount are accurate
+    return migrated.projects.map(recalculateProject);
   } catch (e) {
     console.error('Failed to load projects:', e);
     // If JSON parse fails, clear corrupted data
@@ -162,6 +163,28 @@ export function saveProjects(projects) {
     
     return { success: false, error: e.message || 'Failed to save projects' };
   }
+}
+
+/**
+ * Recalculate derived project data from todos
+ * Ensures currentFocus, nextStep, progress, todoCount are in sync with actual todos
+ * 
+ * @param {Object} project - Project object
+ * @returns {Object} Project with recalculated derived fields
+ */
+export function recalculateProject(project) {
+  const todos = project.todos || [];
+  const doneCount = todos.filter((t) => t.done).length;
+  const activeTodos = todos.filter((t) => !t.done);
+  const total = todos.length;
+
+  return {
+    ...project,
+    todoCount: activeTodos.length,
+    progress: total === 0 ? 0 : Math.round((doneCount / total) * 100),
+    currentFocus: activeTodos.length > 0 ? activeTodos[0].text : (total > 0 ? 'All done!' : 'Getting started'),
+    nextStep: activeTodos.length > 1 ? activeTodos[1].text : (total > 0 ? '-' : 'Define first action'),
+  };
 }
 
 /**
