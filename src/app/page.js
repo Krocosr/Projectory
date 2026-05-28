@@ -249,7 +249,8 @@ function DashboardContent() {
     return counts;
   }, [projects]);
 
-  const aggregatedTodos = useMemo(() => getActiveTodos(projects), [projects]);
+  const [todoSortBy, setTodoSortBy] = useState('priority');
+  const aggregatedTodos = useMemo(() => getActiveTodos(projects, todoSortBy), [projects, todoSortBy]);
 
   const handleNewProject = useCallback((form) => {
     const created = createProject(form);
@@ -386,97 +387,98 @@ function DashboardContent() {
   }, []);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen flex">
       <NewProjectButton onClick={() => setIsNewModalOpen(true)} />
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
-      <div className="max-w-6xl mx-auto px-6 py-10">
-        {selectedProject ? (
-          <motion.div
-            key={`detail-${selectedProject.id}`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.15 }}
-          >
-            <ErrorBoundary 
-              context="ProjectDetailView"
-              errorMessage="Failed to load project details. Try going back to the dashboard."
-              onReset={handleBack}
+      <div className="flex-1 min-w-0 transition-all duration-300">
+        <div className="max-w-6xl mx-auto px-6 py-10">
+          {selectedProject ? (
+            <motion.div
+              key={`detail-${selectedProject.id}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.15 }}
             >
-              <Suspense fallback={<div className="min-h-[60vh] flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-[var(--accent-clay)] border-t-transparent animate-spin" /></div>}>
-                <ProjectDetailView
-                  project={selectedProject}
-                  onBack={handleBack}
-                  onUpdateProject={handleUpdateProject}
-                  onDeleteProject={handleDeleteProject}
-                  onNotify={addToast}
+              <ErrorBoundary 
+                context="ProjectDetailView"
+                errorMessage="Failed to load project details. Try going back to the dashboard."
+                onReset={handleBack}
+              >
+                <Suspense fallback={<div className="min-h-[60vh] flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-[var(--accent-clay)] border-t-transparent animate-spin" /></div>}>
+                  <ProjectDetailView
+                    project={selectedProject}
+                    onBack={handleBack}
+                    onUpdateProject={handleUpdateProject}
+                    onDeleteProject={handleDeleteProject}
+                    onNotify={addToast}
+                    isDarkMode={isDarkMode}
+                    onToggleDarkMode={handleToggleDarkMode}
+                  />
+                </Suspense>
+              </ErrorBoundary>
+            </motion.div>
+          ) : (<>
+                <DashboardHeader
+                  activeFilter={activeFilter}
+                  onFilterChange={setActiveFilter}
+                  projectCounts={projectCounts}
+                  searchQuery={searchQuery}
+                  onSearchChange={setSearchQuery}
+                  onExport={handleExport}
+                  onImport={handleImport}
                   isDarkMode={isDarkMode}
                   onToggleDarkMode={handleToggleDarkMode}
+                  onToggleSidebar={handleToggleSidebar}
+                  activeTodosCount={aggregatedTodos.length}
                 />
-              </Suspense>
-            </ErrorBoundary>
-          </motion.div>
-        ) : (<>
-              <DashboardHeader
-                activeFilter={activeFilter}
-                onFilterChange={setActiveFilter}
-                projectCounts={projectCounts}
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
-                onExport={handleExport}
-                onImport={handleImport}
-                isDarkMode={isDarkMode}
-                onToggleDarkMode={handleToggleDarkMode}
-                onToggleSidebar={handleToggleSidebar}
-                activeTodosCount={aggregatedTodos.length}
-              />
 
-              {!ready ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 auto-rows-fr">
-                  {[...Array(4)].map((_, i) => <CardSkeleton key={i} />)}
-                </div>
-              ) : filteredProjects.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 auto-rows-fr">
-                  {filteredProjects.map((project) => (
-                    <ErrorBoundary 
-                      key={project.id}
-                      context={`ProjectCard-${project.id}`}
-                      errorMessage="Failed to load this project card."
+                {!ready ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 auto-rows-fr">
+                    {[...Array(4)].map((_, i) => <CardSkeleton key={i} />)}
+                  </div>
+                ) : filteredProjects.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 auto-rows-fr">
+                    {filteredProjects.map((project) => (
+                      <ErrorBoundary 
+                        key={project.id}
+                        context={`ProjectCard-${project.id}`}
+                        errorMessage="Failed to load this project card."
+                      >
+                        <ProjectCard
+                          project={project}
+                          onClick={handleCardClick}
+                          onUpdateProject={handleUpdateProject}
+                          onDeleteProject={handleDeleteProject}
+                        />
+                      </ErrorBoundary>
+                    ))}
+                    {activeFilter === 'All' && !searchQuery && (
+                      <NewProjectCard onClick={() => setIsNewModalOpen(true)} />
+                    )}
+                  </div>
+                ) : projects.length === 0 ? (
+                  <EmptyPortfolio onNewProject={() => setIsNewModalOpen(true)} />
+                ) : (
+                  <div className="text-center py-20">
+                    <p className="text-sm text-[var(--text-muted)]">
+                      {searchQuery ? 'No projects match your search' : `No ${activeFilter.toLowerCase()} projects`}
+                    </p>
+                    <button
+                      onClick={() => { setActiveFilter('All'); setSearchQuery(''); }}
+                      className="mt-2 text-sm text-[var(--accent-clay)] hover:text-[var(--text-primary)] transition-colors"
                     >
-                      <ProjectCard
-                        project={project}
-                        onClick={handleCardClick}
-                        onUpdateProject={handleUpdateProject}
-                        onDeleteProject={handleDeleteProject}
-                      />
-                    </ErrorBoundary>
-                  ))}
-                  {activeFilter === 'All' && !searchQuery && (
-                    <NewProjectCard onClick={() => setIsNewModalOpen(true)} />
-                  )}
-                </div>
-              ) : projects.length === 0 ? (
-                <EmptyPortfolio onNewProject={() => setIsNewModalOpen(true)} />
-              ) : (
-                <div className="text-center py-20">
-                  <p className="text-sm text-[var(--text-muted)]">
-                    {searchQuery ? 'No projects match your search' : `No ${activeFilter.toLowerCase()} projects`}
-                  </p>
-                  <button
-                    onClick={() => { setActiveFilter('All'); setSearchQuery(''); }}
-                    className="mt-2 text-sm text-[var(--accent-clay)] hover:text-[var(--text-primary)] transition-colors"
-                  >
-                    Show all projects
-                  </button>
-                </div>
-              )}
-            </>
-          )}
+                      Show all projects
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+        </div>
       </div>
 
       <ActiveTodosSidebar
         isOpen={isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
         todos={aggregatedTodos}
         onToggleTodo={handleToggleTodoFromSidebar}
         onNavigateToProject={handleSidebarNavigate}
