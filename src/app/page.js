@@ -4,14 +4,11 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import DashboardHeader from '@/components/DashboardHeader';
 import NewProjectModal from '@/components/NewProjectModal';
-import ScratchpadModal from '@/components/ScratchpadModal';
-import ScratchpadWidget from '@/components/ScratchpadWidget';
 import ToastContainer, { useToast } from '@/components/Toast';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import ProjectCard from '@/components/ProjectCard';
 import { seedProjects, SEED_KEY, createProject } from '@/app/data';
 import { loadProjects, saveProjects, recoverFromApi, exportToFile, importFromFile, recalculateProject } from '@/lib/storage';
-import { loadScratchpad, saveScratchpad } from '@/lib/scratchpad';
 
 // Lazy load only the heavy ProjectDetailView component
 // ProjectCard is small (~210 lines) and used frequently, so keep it eager for better UX
@@ -108,9 +105,6 @@ function DashboardContent() {
   const { toasts, addToast, dismissToast } = useToast();
   const lastFocusedCardIdRef = useRef(null);
   const pendingNavigateHomeRef = useRef(false);
-  const [isScratchpadOpen, setIsScratchpadOpen] = useState(false);
-  const [scratchpadContent, setScratchpadContent] = useState('');
-  const [scratchpadPinned, setScratchpadPinned] = useState(false);
   const DARK_MODE_KEY = 'deadliner_dark_mode';
   const [isDarkMode, setIsDarkMode] = useState(false);
 
@@ -128,13 +122,6 @@ function DashboardContent() {
     }
   }, []);
 
-  // Load scratchpad from localStorage
-  useEffect(() => {
-    const data = loadScratchpad();
-    setScratchpadContent(data.content || '');
-    setScratchpadPinned(data.pinned || false);
-  }, []);
-
   // Global keyboard shortcuts
   useEffect(() => {
     const handleKey = (e) => {
@@ -149,14 +136,10 @@ function DashboardContent() {
         const searchInput = document.querySelector('input[aria-label="Search projects"]');
         searchInput?.focus();
       }
-      if (e.key === 's' && !selectedProject && !isScratchpadOpen) {
-        e.preventDefault();
-        setIsScratchpadOpen(true);
-      }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [selectedProject, isScratchpadOpen]);
+  }, [selectedProject]);
 
   // Load from localStorage once, with API recovery fallback
   useEffect(() => {
@@ -370,17 +353,6 @@ function DashboardContent() {
     });
   }, []);
 
-  const handleScratchpadSave = useCallback((content, pinned) => {
-    setScratchpadContent(content);
-    setScratchpadPinned(pinned);
-    saveScratchpad(content, pinned);
-  }, []);
-
-  const handleScratchpadUnpin = useCallback(() => {
-    setScratchpadPinned(false);
-    saveScratchpad(scratchpadContent, false);
-  }, [scratchpadContent]);
-
   return (
     <div className="min-h-screen">
       <NewProjectButton onClick={() => setIsNewModalOpen(true)} />
@@ -423,18 +395,7 @@ function DashboardContent() {
                 onImport={handleImport}
                 isDarkMode={isDarkMode}
                 onToggleDarkMode={handleToggleDarkMode}
-                onOpenScratchpad={() => setIsScratchpadOpen(true)}
               />
-
-              {scratchpadPinned && ready && !selectedProject && (
-                <div className="mb-5">
-                  <ScratchpadWidget
-                    content={scratchpadContent}
-                    onClick={() => setIsScratchpadOpen(true)}
-                    onUnpin={handleScratchpadUnpin}
-                  />
-                </div>
-              )}
 
               {!ready ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 auto-rows-fr">
@@ -483,14 +444,6 @@ function DashboardContent() {
         isOpen={isNewModalOpen}
         onClose={() => setIsNewModalOpen(false)}
         onSave={handleNewProject}
-      />
-
-      <ScratchpadModal
-        isOpen={isScratchpadOpen}
-        onClose={() => setIsScratchpadOpen(false)}
-        content={scratchpadContent}
-        pinned={scratchpadPinned}
-        onSave={handleScratchpadSave}
       />
     </div>
   );

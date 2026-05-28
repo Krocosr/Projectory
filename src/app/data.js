@@ -54,6 +54,7 @@ export function createProject(form) {
     notes: '',
     links: [],
     assets: [],
+    scratchpadLog: [],
     timeline: [{
       date: new Date().toISOString(),
       action: 'Project created',

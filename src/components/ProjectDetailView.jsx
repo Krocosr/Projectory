@@ -7,9 +7,10 @@ import PropTypes from 'prop-types';
 import { STATUS_COLORS } from '@/lib/constants';
 import { formatLastWorked } from '@/lib/dateUtils';
 import { OverviewTab, TodosTab, WorkspaceTab, TimelineTab, SettingsTab, EditTodoModal } from '@/components/detail';
+import ScratchpadTab from '@/components/detail/ScratchpadTab';
 
 
-const TABS = ['Overview', 'Todos', 'Workspace', 'Timeline', 'Settings'];
+const TABS = ['Overview', 'Todos', 'Workspace', 'Scratchpad', 'Timeline', 'Settings'];
 
 export default function ProjectDetailView({ project, onBack, onUpdateProject, onDeleteProject, onNotify, isDarkMode, onToggleDarkMode }) {
   const [activeTab, setActiveTab] = useState('Overview');
@@ -329,6 +330,21 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
             transition={{ duration: 0.15 }}
           >
             <WorkspaceTab
+              project={project}
+              onUpdateProject={onUpdateProject}
+              onNotify={onNotify}
+            />
+          </motion.div>
+        )}
+        {activeTab === 'Scratchpad' && (
+          <motion.div
+            key="scratchpad"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <ScratchpadTab
               project={project}
               onUpdateProject={onUpdateProject}
               onNotify={onNotify}
