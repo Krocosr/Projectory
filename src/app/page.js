@@ -2,6 +2,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef, useDeferredValue, Suspense, lazy } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import DashboardHeader from '@/components/DashboardHeader';
 import NewProjectModal from '@/components/NewProjectModal';
 import ToastContainer, { useToast } from '@/components/Toast';
@@ -394,12 +395,28 @@ function DashboardContent() {
     });
   }, []);
 
+  const handleProjectDragEnd = useCallback((result) => {
+    if (!result.destination) return;
+    if (result.source.index === result.destination.index) return;
+
+    setProjects((current) => {
+      const reordered = [...current];
+      const [removed] = reordered.splice(result.source.index, 1);
+      reordered.splice(result.destination.index, 0, removed);
+      const saveResult = saveProjects(reordered);
+      if (!saveResult.success) {
+        addToast(saveResult.error || 'Failed to save reorder', 'error');
+      }
+      return reordered;
+    });
+  }, [addToast]);
+
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex overflow-hidden">
       <NewProjectButton onClick={() => setIsNewModalOpen(true)} />
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
-      <div className="flex-1 min-w-0 transition-all duration-300">
+      <div className="flex-1 min-w-0 transition-all duration-300 overflow-y-auto" style={{ marginRight: isSidebarOpen ? '380px' : '0' }}>
         <div className="max-w-6xl mx-auto px-6 py-10">
           {selectedProject ? (
             <motion.div
@@ -448,25 +465,56 @@ function DashboardContent() {
                     {[...Array(4)].map((_, i) => <CardSkeleton key={i} />)}
                   </div>
                 ) : filteredProjects.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 auto-rows-fr">
-                    {filteredProjects.map((project) => (
-                      <ErrorBoundary 
-                        key={project.id}
-                        context={`ProjectCard-${project.id}`}
-                        errorMessage="Failed to load this project card."
-                      >
-                        <ProjectCard
-                          project={project}
-                          onClick={handleCardClick}
-                          onUpdateProject={handleUpdateProject}
-                          onDeleteProject={handleDeleteProject}
-                        />
-                      </ErrorBoundary>
-                    ))}
-                    {activeFilter === 'All' && !searchQuery && (
-                      <NewProjectCard onClick={() => setIsNewModalOpen(true)} />
-                    )}
-                  </div>
+                  <DragDropContext onDragEnd={handleProjectDragEnd}>
+                    <Droppable droppableId="projects">
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 auto-rows-fr transition-colors ${
+                            snapshot.isDraggingOver ? 'bg-[var(--accent-clay)]/5 rounded-2xl p-2' : ''
+                          }`}
+                        >
+                          {filteredProjects.map((project, index) => (
+                            <Draggable
+                              key={String(project.id)}
+                              draggableId={String(project.id)}
+                              index={index}
+                            >
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  style={provided.draggableProps.style}
+                                  className={`transition-shadow ${
+                                    snapshot.isDragging ? 'shadow-2xl ring-2 ring-[var(--accent-clay)]/40 rounded-2xl scale-105' : ''
+                                  }`}
+                                >
+                                  <ErrorBoundary 
+                                    key={project.id}
+                                    context={`ProjectCard-${project.id}`}
+                                    errorMessage="Failed to load this project card."
+                                  >
+                                    <ProjectCard
+                                      project={project}
+                                      onClick={handleCardClick}
+                                      onUpdateProject={handleUpdateProject}
+                                      onDeleteProject={handleDeleteProject}
+                                    />
+                                  </ErrorBoundary>
+                                </div>
+                              )}
+                            </Draggable>
+                          ))}
+                          {provided.placeholder}
+                          {activeFilter === 'All' && !searchQuery && (
+                            <NewProjectCard onClick={() => setIsNewModalOpen(true)} />
+                          )}
+                        </div>
+                      )}
+                    </Droppable>
+                  </DragDropContext>
                 ) : projects.length === 0 ? (
                   <EmptyPortfolio onNewProject={() => setIsNewModalOpen(true)} />
                 ) : (

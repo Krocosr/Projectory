@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import PropTypes from 'prop-types';
 import { PRIORITY_STYLES } from '@/lib/constants';
 import { formatDeadlineForDisplay } from '@/lib/dateUtils';
@@ -13,7 +14,7 @@ const SORT_OPTIONS = [
   { value: 'oldest', label: 'Oldest' },
 ];
 
-function TodoItem({ todo, onToggle, onNavigate, onDragStart, onDragOver, onDrop, isDragging }) {
+function TodoItem({ todo, onToggle, onNavigate, dragHandleProps }) {
   const truncateProjectName = (name) => {
     if (name.length > 18) {
       return name.slice(0, 18) + '...';
@@ -22,15 +23,13 @@ function TodoItem({ todo, onToggle, onNavigate, onDragStart, onDragOver, onDrop,
   };
 
   return (
-    <div
-      draggable="true"
-      onDragStart={(e) => onDragStart(e, todo)}
-      onDragOver={onDragOver}
-      onDrop={(e) => onDrop(e, todo)}
-      className={`group flex items-start gap-3 px-5 py-3 hover:bg-[var(--border-subtle)]/30 transition-colors border-b border-[var(--border-subtle)] cursor-move ${
-        isDragging ? 'opacity-50' : ''
-      }`}
-    >
+    <div className="group flex items-start gap-3 px-5 py-3 hover:bg-[var(--border-subtle)]/30 transition-colors border-b border-[var(--border-subtle)]">
+      <div {...dragHandleProps} className="mt-0.5 shrink-0 cursor-grab active:cursor-grabbing text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors">
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M3 12h18M3 17h18" />
+        </svg>
+      </div>
+      
       <button
         onClick={(e) => {
           e.stopPropagation();
@@ -78,16 +77,12 @@ TodoItem.propTypes = {
   todo: PropTypes.object.isRequired,
   onToggle: PropTypes.func.isRequired,
   onNavigate: PropTypes.func.isRequired,
-  onDragStart: PropTypes.func.isRequired,
-  onDragOver: PropTypes.func.isRequired,
-  onDrop: PropTypes.func.isRequired,
-  isDragging: PropTypes.bool,
+  dragHandleProps: PropTypes.object,
 };
 
 export default function ActiveTodosSidebar({ isOpen, todos, onToggleTodo, onNavigateToProject }) {
   const [sortBy, setSortBy] = useState('priority');
   const [searchQuery, setSearchQuery] = useState('');
-  const [draggedTodo, setDraggedTodo] = useState(null);
 
   // Filter todos based on search
   const filteredTodos = useMemo(() => {
@@ -139,42 +134,14 @@ export default function ActiveTodosSidebar({ isOpen, todos, onToggleTodo, onNavi
     setDisplayTodos([...sortedTodos]);
   }, [sortedTodos]);
 
-  const handleDragStart = (e, todo) => {
-    setDraggedTodo(todo);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setDragImage(new Image(), 0, 0);
-  };
+  const handleDragEnd = (result) => {
+    if (!result.destination) return;
+    if (result.source.index === result.destination.index) return;
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  };
-
-  const handleDrop = (e, targetTodo) => {
-    e.preventDefault();
-    if (!draggedTodo || draggedTodo.id === targetTodo.id) {
-      setDraggedTodo(null);
-      return;
-    }
-
-    const draggedIndex = displayTodos.findIndex(
-      (t) => t.id === draggedTodo.id && t.projectId === draggedTodo.projectId
-    );
-    const targetIndex = displayTodos.findIndex(
-      (t) => t.id === targetTodo.id && t.projectId === targetTodo.projectId
-    );
-
-    if (draggedIndex === -1 || targetIndex === -1) {
-      setDraggedTodo(null);
-      return;
-    }
-
-    const newTodos = [...displayTodos];
-    const [removed] = newTodos.splice(draggedIndex, 1);
-    newTodos.splice(targetIndex, 0, removed);
-
-    setDisplayTodos(newTodos);
-    setDraggedTodo(null);
+    const reordered = [...displayTodos];
+    const [removed] = reordered.splice(result.source.index, 1);
+    reordered.splice(result.destination.index, 0, removed);
+    setDisplayTodos(reordered);
   };
 
   const handleSortChange = (newSort) => {
@@ -189,7 +156,7 @@ export default function ActiveTodosSidebar({ isOpen, todos, onToggleTodo, onNavi
           animate={{ width: 380, opacity: 1 }}
           exit={{ width: 0, opacity: 0 }}
           transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-          className="shrink-0 bg-[var(--bg-primary)] border-l border-[var(--border-subtle)] shadow-2xl flex flex-col overflow-hidden"
+          className="shrink-0 bg-[var(--bg-primary)] border-l border-[var(--border-subtle)] shadow-2xl flex flex-col overflow-hidden h-screen fixed right-0 top-0"
           role="complementary"
           aria-label="Active todos sidebar"
         >
@@ -240,18 +207,42 @@ export default function ActiveTodosSidebar({ isOpen, todos, onToggleTodo, onNavi
                 <p className="text-xs text-[var(--text-muted)]">No active todos across your projects.</p>
               </div>
             ) : (
-              displayTodos.map((todo) => (
-                <TodoItem
-                  key={`${todo.projectId}-${todo.id}`}
-                  todo={todo}
-                  onToggle={onToggleTodo}
-                  onNavigate={onNavigateToProject}
-                  onDragStart={handleDragStart}
-                  onDragOver={handleDragOver}
-                  onDrop={handleDrop}
-                  isDragging={draggedTodo?.id === todo.id && draggedTodo?.projectId === todo.projectId}
-                />
-              ))
+              <DragDropContext onDragEnd={handleDragEnd}>
+                <Droppable droppableId="sidebar-todos">
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className={`transition-colors ${snapshot.isDraggingOver ? 'bg-[var(--accent-clay)]/5' : ''}`}
+                    >
+                      {displayTodos.map((todo, index) => (
+                        <Draggable 
+                          key={`${todo.projectId}-${todo.id}`} 
+                          draggableId={`${todo.projectId}-${todo.id}`} 
+                          index={index}
+                        >
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              style={provided.draggableProps.style}
+                              className={`transition-shadow ${snapshot.isDragging ? 'shadow-lg ring-2 ring-[var(--accent-clay)]/30 bg-[var(--bg-card)] rounded-lg' : ''}`}
+                            >
+                              <TodoItem
+                                todo={todo}
+                                onToggle={onToggleTodo}
+                                onNavigate={onNavigateToProject}
+                                dragHandleProps={provided.dragHandleProps}
+                              />
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
             )}
           </div>
         </motion.aside>
