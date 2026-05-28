@@ -56,6 +56,7 @@ export function createProject(form) {
     assets: [],
     sortState: 'default',
     archivedAt: null,
+    scratchpadLog: [],
     timeline: [{
       date: new Date().toISOString(),
       action: 'Project created',
