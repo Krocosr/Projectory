@@ -17,7 +17,7 @@
  * - Seed data uses string IDs like 'seed-1' (no conflict with user-generated IDs)
  */
 
-export const SEED_KEY = 'deadliner_seeded_v2';
+export const SEED_KEY = 'projectory_seeded_v2';
 
 /**
  * Default form values for new project creation
@@ -54,6 +54,8 @@ export function createProject(form) {
     notes: '',
     links: [],
     assets: [],
+    sortState: 'default',
+    archivedAt: null,
     timeline: [{
       date: new Date().toISOString(),
       action: 'Project created',

@@ -124,12 +124,16 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
   const handleDeleteProject = useCallback(() => {
     const p = projectRef.current;
     const onDelete = onDeleteProject;
-    const onNotify = onNotifyRef.current;
-    if (window.confirm(`Delete "${p.title}"? This cannot be undone.`)) {
+    if (window.confirm(`Archive "${p.title}"? It will be moved to Archived status.`)) {
       onDelete?.(p.id);
-      onNotify?.('Project deleted');
     }
   }, [onDeleteProject]);
+
+  const handleSortChange = useCallback((sortBy) => {
+    const p = projectRef.current;
+    const onUpdate = onUpdateProjectRef.current;
+    onUpdate({ ...p, sortState: sortBy });
+  }, []);
 
   // Memoize progress calculation at component level
   const progress = useMemo(() => computeProgress(project.todos), [project.todos]);
@@ -317,6 +321,7 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
               onRemoveTodo={handleRemoveTodo}
               onEditTodo={handleEditTodo}
               onReorderTodos={handleReorderTodos}
+              onSortChange={handleSortChange}
             />
           </motion.div>
         )}

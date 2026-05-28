@@ -1,6 +1,6 @@
 import { runMigrations, needsMigration } from './migrations';
 
-const STORAGE_KEY = 'deadliner_projects';
+const STORAGE_KEY = 'projectory_projects';
 
 /**
  * Load projects from localStorage with automatic migration support
@@ -30,7 +30,13 @@ export function loadProjects() {
     
     // Return just the projects array for backward compatibility
     // Recalculate derived data from todos to ensure currentFocus, nextStep, progress, todoCount are accurate
-    return migrated.projects.map(recalculateProject);
+    const projects = migrated.projects.map(recalculateProject);
+    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    return projects.filter((p) => {
+      if (p.status !== 'Archived' || !p.archivedAt) return true;
+      return now - new Date(p.archivedAt).getTime() <= SEVEN_DAYS_MS;
+    });
   } catch (e) {
     console.error('Failed to load projects:', e);
     // If JSON parse fails, clear corrupted data
@@ -79,7 +85,7 @@ export function exportToFile(projects) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `deadliner-backup-${new Date().toISOString().split('T')[0]}.json`;
+  a.download = `projectory-backup-${new Date().toISOString().split('T')[0]}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -199,12 +205,13 @@ export function recalculateProject(project) {
  * @param {string} details - Optional detailed description
  * @returns {Object} Todo object with id, text, priority, details, done, createdAt
  */
-export function createTodo(text, priority = 'Medium', details = '') {
+export function createTodo(text, priority = 'Medium', details = '', deadline = '') {
   return {
     id: Date.now() + Math.floor(Math.random() * 1000),
     text,
     priority,
     details,
+    deadline,
     done: false,
     createdAt: new Date().toISOString(),
   };

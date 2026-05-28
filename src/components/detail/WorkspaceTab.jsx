@@ -25,7 +25,6 @@ export default function WorkspaceTab({ project, onUpdateProject, onNotify }) {
     const timer = setTimeout(() => {
       if (noteText !== projectRef.current.notes) {
         onUpdateRef.current({ ...projectRef.current, notes: noteText });
-        onNotifyRef.current('Notes auto-saved');
       }
     }, 600);
     return () => clearTimeout(timer);
@@ -35,7 +34,6 @@ export default function WorkspaceTab({ project, onUpdateProject, onNotify }) {
     return () => {
       if (noteTextRef.current !== projectRef.current.notes) {
         onUpdateRef.current({ ...projectRef.current, notes: noteTextRef.current });
-        onNotifyRef.current('Notes saved');
       }
     };
   }, []);

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { createTodo } from '@/lib/storage';
 import { PRIORITY_STYLES, Z_INDEX } from '@/lib/constants';
-import { formatRelativeTime } from '@/lib/dateUtils';
+import { formatRelativeTime, formatDeadlineForDisplay } from '@/lib/dateUtils';
 
 export function groupTimelineByDate(entries) {
   const groups = {};
@@ -139,6 +139,11 @@ export const TodoItem = memo(function TodoItem({ todo, onToggle, onRemove, onEdi
               </button>
             )}
           </div>
+          {todo.deadline && (
+            <span className="text-[10px] text-[var(--text-muted)] shrink-0">
+              {formatDeadlineForDisplay(todo.deadline)}
+            </span>
+          )}
           <span className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${PRIORITY_STYLES[todo.priority] || PRIORITY_STYLES.Medium}`}>
             {todo.priority}
           </span>
@@ -216,6 +221,7 @@ export const TodoItem = memo(function TodoItem({ todo, onToggle, onRemove, onEdi
     prevProps.todo.done === nextProps.todo.done &&
     prevProps.todo.priority === nextProps.todo.priority &&
     prevProps.todo.details === nextProps.todo.details &&
+    prevProps.todo.deadline === nextProps.todo.deadline &&
     prevProps.dragHandleProps === nextProps.dragHandleProps
   );
 });
@@ -336,6 +342,7 @@ export function EditTodoModal({ todo, isOpen, onClose, onSave }) {
   const [text, setText] = useState(todo?.text || '');
   const [priority, setPriority] = useState(todo?.priority || 'Medium');
   const [details, setDetails] = useState(todo?.details || '');
+  const [deadline, setDeadline] = useState(todo?.deadline || '');
   const modalRef = useRef(null);
 
   useEffect(() => {
@@ -343,6 +350,7 @@ export function EditTodoModal({ todo, isOpen, onClose, onSave }) {
       setText(todo.text || '');
       setPriority(todo.priority || 'Medium');
       setDetails(todo.details || '');
+      setDeadline(todo.deadline || '');
     }
   }, [todo]);
 
@@ -369,7 +377,7 @@ export function EditTodoModal({ todo, isOpen, onClose, onSave }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!text.trim()) return;
-    onSave({ ...todo, text: text.trim(), priority, details: details.trim() });
+    onSave({ ...todo, text: text.trim(), priority, details: details.trim(), deadline });
     onClose();
   };
 
@@ -417,6 +425,15 @@ export function EditTodoModal({ todo, isOpen, onClose, onSave }) {
               onChange={(e) => setDetails(e.target.value)}
               rows={3}
               className="w-full px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all resize-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">Deadline (optional)</label>
+            <input
+              type="date"
+              value={deadline}
+              onChange={(e) => setDeadline(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all"
             />
           </div>
           <div className="flex gap-3 pt-2">

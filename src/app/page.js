@@ -105,7 +105,7 @@ function DashboardContent() {
   const { toasts, addToast, dismissToast } = useToast();
   const lastFocusedCardIdRef = useRef(null);
   const pendingNavigateHomeRef = useRef(false);
-  const DARK_MODE_KEY = 'deadliner_dark_mode';
+  const DARK_MODE_KEY = 'projectory_dark_mode';
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   // Initialize dark mode from localStorage + system preference
@@ -284,7 +284,15 @@ function DashboardContent() {
     pendingNavigateHomeRef.current = true;
     setSelectedProject(null);
     setProjects((current) => {
-      const updated = current.filter((p) => p.id !== id);
+      const updated = current.map((p) => {
+        if (p.id !== id) return p;
+        return {
+          ...p,
+          status: 'Archived',
+          archivedAt: new Date().toISOString(),
+          timeline: [...(p.timeline || []), { date: new Date().toISOString(), action: 'Project archived' }],
+        };
+      });
       const result = saveProjects(updated);
       if (!result.success) {
         addToast(result.error || 'Failed to save changes', 'error');
@@ -292,7 +300,7 @@ function DashboardContent() {
       return updated;
     });
     router.push('/', { scroll: false });
-    addToast('Project deleted', 'error');
+    addToast('Project archived');
   }, [router, addToast, setSelectedProject]);
 
   const handleBack = useCallback(() => {
