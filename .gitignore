@@ -27,7 +27,6 @@ build/
 .node_repl_history
 
 # AI / agent / MCP
-.claude/
 .agents/
 mcp.json
 
