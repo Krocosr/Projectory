@@ -9,7 +9,7 @@ Deadliner is a Next.js 14 client-first SPA project manager. Data is persisted to
 
 ## Prerequisite
 
-The dev server must be running for tools to work:
+The server must be running for tools to work. Start the dev server with (only if server is not already running):
 
 ```bash
 npm run dev
@@ -26,6 +26,21 @@ Three tools are registered under the `deadliner` namespace:
 | `deadliner_read_projects` | List all projects with summary (title, status, progress %, todo counts) |
 | `deadliner_read_project` | Get full project detail by ID (all fields, todos, timeline, notes, links, assets) |
 | `deadliner_read_todos` | Get todos for a project, optionally filtered by `all`, `pending`, or `done` |
+
+## API Routes
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/projects` | List all projects |
+| `POST` | `/api/projects` | Create or update a single project |
+| `PUT` | `/api/projects` | Replace all projects (bulk sync) |
+| `GET` | `/api/projects/[id]` | Get a single project |
+| `PATCH` | `/api/projects/[id]` | Partial update of a project |
+| `DELETE` | `/api/projects/[id]` | Delete a project |
+
+- **Storage**: File-based at `data/projects.json` (Next.js server-side only)
+- **Client sync**: `saveProjects()` automatically syncs to API via `PUT /api/projects` (best-effort, silent failure)
+- **CLI**: `node scripts/deadliner-cli.mjs list` — set `DEADLINER_API` env var for custom port
 
 ## Data Model
 

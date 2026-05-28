@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PropTypes from 'prop-types';
-import { STATUSES, STATUS_STYLES, Z_INDEX } from '@/lib/constants';
+import { STATUSES, STATUS_STYLES, STATUS_COLORS, Z_INDEX } from '@/lib/constants';
 import { formatDeadlineForDisplay } from '@/lib/dateUtils';
 
 function StatusBadge({ status }) {
@@ -56,7 +56,7 @@ function ContextMenu({ x, y, project, onEdit, onChangeStatus, onDelete, onClose 
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.92 }}
         transition={{ duration: 0.12 }}
-        className="w-52 bg-white rounded-xl border border-[var(--border-subtle)] shadow-[var(--shadow-modal)] overflow-hidden py-1"
+        className="w-52 bg-[var(--bg-card)] rounded-xl border border-[var(--border-subtle)] shadow-[var(--shadow-modal)] overflow-hidden py-1"
         role="menu"
         aria-label="Project options"
       >
@@ -88,7 +88,7 @@ function ContextMenu({ x, y, project, onEdit, onChangeStatus, onDelete, onClose 
             role="menuitem"
             aria-current={project.status === s ? 'true' : undefined}
           >
-            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: STATUS_STYLES[s]?.bg.replace('bg-[', '').replace(']', '') || '#aaa' }} />
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: STATUS_COLORS[s] || '#7A706A' }} />
             {s}
             {project.status === s && (
               <svg className="w-3.5 h-3.5 ml-auto text-[var(--accent-clay)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -99,11 +99,11 @@ function ContextMenu({ x, y, project, onEdit, onChangeStatus, onDelete, onClose 
         ))}
 
         <div className="border-t border-[var(--border-subtle)] my-1" />
-        <button
-          onClick={() => { onDelete(); onClose(); }}
-          className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-500 hover:bg-red-50 transition-colors text-left"
-          role="menuitem"
-        >
+          <button
+            onClick={() => { onDelete(); onClose(); }}
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors text-left"
+            role="menuitem"
+          >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
           </svg>

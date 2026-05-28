@@ -120,17 +120,21 @@ export function importFromFile(file) {
  * @param {Array} projects - Array of project objects
  * @returns {boolean} True if save succeeded, false otherwise
  */
+let syncTimer = null;
 function syncToApi(projects) {
   if (typeof window === 'undefined') return;
-  try {
-    fetch('/api/projects', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ projects }),
-    }).catch(() => {});
-  } catch {
-    // Best-effort — API may not be running
-  }
+  if (syncTimer) clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => {
+    try {
+      fetch('/api/projects', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projects }),
+      }).catch(() => {});
+    } catch {
+      // Best-effort — API may not be running
+    }
+  }, 2000);
 }
 
 export function saveProjects(projects) {

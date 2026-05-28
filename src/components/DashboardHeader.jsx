@@ -5,7 +5,7 @@ import PropTypes from 'prop-types';
 
 const FILTERS = ['All', 'Active', 'Paused', 'Ideas', 'Finished', 'Archived'];
 
-const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterChange, projectCounts, searchQuery, onSearchChange, onExport, onImport }) {
+const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterChange, projectCounts, searchQuery, onSearchChange, onExport, onImport, isDarkMode, onToggleDarkMode }) {
   const fileInputRef = useRef(null);
 
   const handleImportClick = () => {
@@ -50,6 +50,21 @@ const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterCh
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
             </svg>
           </button>
+          <button
+            onClick={onToggleDarkMode}
+            title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--border-subtle)]/50 transition-colors"
+          >
+            {isDarkMode ? (
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              </svg>
+            )}
+          </button>
           <input
             ref={fileInputRef}
             type="file"
@@ -58,7 +73,7 @@ const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterCh
             className="hidden"
             aria-hidden="true"
           />
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/40 border border-[var(--border-subtle)]">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--bg-card)]/40 border border-[var(--border-subtle)]">
             <svg className="w-3.5 h-3.5 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
@@ -102,7 +117,7 @@ const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterCh
               {isActive && (
                 <motion.div
                   layoutId="active-tab"
-                  className="absolute inset-0 bg-white border border-[var(--border-subtle)] rounded-lg shadow-sm"
+                  className="absolute inset-0 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-lg shadow-sm"
                   transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                 />
               )}
@@ -139,6 +154,8 @@ DashboardHeader.propTypes = {
   onSearchChange: PropTypes.func,
   onExport: PropTypes.func,
   onImport: PropTypes.func,
+  isDarkMode: PropTypes.bool,
+  onToggleDarkMode: PropTypes.func,
 };
 
 export default DashboardHeader;

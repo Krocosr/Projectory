@@ -17,9 +17,29 @@ html {
   --accent-slate: #4A6B8A;
   --accent-slate-light: #7A9BBA;
   --border-subtle: #E8E0D8;
+  --border-checkbox: #C8C0B8;
+  --checkbox-accent: #D4815B;
   --shadow-card: 0 2px 8px rgba(44, 36, 32, 0.06), 0 1px 2px rgba(44, 36, 32, 0.04);
   --shadow-hover: 0 8px 24px rgba(44, 36, 32, 0.10), 0 2px 4px rgba(44, 36, 32, 0.06);
   --shadow-modal: 0 24px 64px rgba(44, 36, 32, 0.16), 0 4px 12px rgba(44, 36, 32, 0.08);
+}
+
+.dark {
+  --bg-primary: #1A1614;
+  --bg-card: #24201E;
+  --text-primary: #EAE2DC;
+  --text-secondary: #A39A94;
+  --text-muted: #7A706A;
+  --accent-clay: #D4815B;
+  --accent-clay-light: #C0704A;
+  --accent-slate: #7A9BBA;
+  --accent-slate-light: #A0B8D0;
+  --border-subtle: #33302C;
+  --border-checkbox: #55504A;
+  --checkbox-accent: #B8603A;
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.15);
+  --shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.35), 0 2px 4px rgba(0, 0, 0, 0.2);
+  --shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.45), 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 ::selection {

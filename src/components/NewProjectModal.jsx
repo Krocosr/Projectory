@@ -108,7 +108,7 @@ export default function NewProjectModal({ isOpen, onClose, onSave }) {
                   value={form.title}
                   onChange={(e) => update('title', e.target.value)}
                   placeholder="e.g. AI Story App"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-subtle)] bg-white text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all"
                   autoFocus
                   required
                   aria-required="true"
@@ -122,7 +122,7 @@ export default function NewProjectModal({ isOpen, onClose, onSave }) {
                   onChange={(e) => update('description', e.target.value)}
                   placeholder="What is this project about?"
                   rows={3}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-subtle)] bg-white text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all resize-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all resize-none"
                   aria-label="Project Description"
                 />
               </FormField>
@@ -132,7 +132,7 @@ export default function NewProjectModal({ isOpen, onClose, onSave }) {
                   <select
                     value={form.status}
                     onChange={(e) => update('status', e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-subtle)] bg-white text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all appearance-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all appearance-none"
                     aria-label="Project Status"
                   >
                     {STATUSES.map((s) => (
@@ -146,7 +146,7 @@ export default function NewProjectModal({ isOpen, onClose, onSave }) {
                     type="date"
                     value={form.deadline}
                     onChange={(e) => update('deadline', e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-subtle)] bg-white text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all"
                     aria-label="Project Deadline"
                   />
                 </FormField>
@@ -158,7 +158,7 @@ export default function NewProjectModal({ isOpen, onClose, onSave }) {
                   value={form.goal}
                   onChange={(e) => update('goal', e.target.value)}
                   placeholder="What's the north star?"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-subtle)] bg-white text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all"
                   aria-label="Project Goal"
                 />
               </FormField>

@@ -25,3 +25,7 @@ build/
 .eslintcache
 .stylelintcache
 .node_repl_history
+
+# Generated / user data
+codemap.html
+data/projects.json

@@ -8,7 +8,7 @@ import ToastContainer, { useToast } from '@/components/Toast';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import ProjectCard from '@/components/ProjectCard';
 import { seedProjects, SEED_KEY, createProject } from '@/app/data';
-import { loadProjects, saveProjects, recoverFromApi, exportToFile, importFromFile } from '@/lib/storage';
+import { loadProjects, saveProjects, recoverFromApi, exportToFile, importFromFile, recalculateProject } from '@/lib/storage';
 
 // Lazy load only the heavy ProjectDetailView component
 // ProjectCard is small (~210 lines) and used frequently, so keep it eager for better UX
@@ -105,6 +105,41 @@ function DashboardContent() {
   const { toasts, addToast, dismissToast } = useToast();
   const lastFocusedCardIdRef = useRef(null);
   const pendingNavigateHomeRef = useRef(false);
+  const DARK_MODE_KEY = 'deadliner_dark_mode';
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  // Initialize dark mode from localStorage + system preference
+  useEffect(() => {
+    const stored = localStorage.getItem(DARK_MODE_KEY);
+    if (stored !== null) {
+      const dark = stored === 'true';
+      setIsDarkMode(dark);
+      document.documentElement.classList.toggle('dark', dark);
+    } else {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      setIsDarkMode(prefersDark);
+      document.documentElement.classList.toggle('dark', prefersDark);
+    }
+  }, []);
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKey = (e) => {
+      const tag = e.target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.key === 'n' && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        setIsNewModalOpen(true);
+      }
+      if (e.key === '/' && !selectedProject) {
+        e.preventDefault();
+        const searchInput = document.querySelector('input[aria-label="Search projects"]');
+        searchInput?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [selectedProject]);
 
   // Load from localStorage once, with API recovery fallback
   useEffect(() => {
@@ -136,7 +171,6 @@ function DashboardContent() {
   const projectParam = searchParams.get('project');
   useEffect(() => {
     if (!ready) return;
-    console.log('[nav] searchParams effect | ready:', ready, '| projectParam:', projectParam, '| projects.length:', projects.length, '| pendingNavigateHome:', pendingNavigateHomeRef.current);
     if (projectParam) {
       pendingNavigateHomeRef.current = false;
       const found = projects.find((p) => String(p.id) === projectParam);
@@ -146,7 +180,7 @@ function DashboardContent() {
         setSelectedProject(null);
         router.push('/', { scroll: false });
       }
-    } else if (pendingNavigateHomeRef.current) {
+    } else {
       pendingNavigateHomeRef.current = false;
       setSelectedProject(null);
     }
@@ -157,7 +191,12 @@ function DashboardContent() {
     if (deferredSearch.trim()) {
       const q = deferredSearch.toLowerCase();
       list = list.filter((p) => {
-        const searchText = [p.title, p.description, p.goal].filter(Boolean).join(' ').toLowerCase();
+        const searchText = [
+          p.title, p.description, p.goal,
+          ...(p.todos || []).map((t) => t.text),
+          p.notes,
+          ...(p.links || []).map((l) => l.title),
+        ].filter(Boolean).join(' ').toLowerCase();
         return searchText.includes(q);
       });
     }
@@ -190,20 +229,20 @@ function DashboardContent() {
   }, [addToast]);
 
   const handleUpdateProject = useCallback((updated) => {
+    const recalculated = recalculateProject(updated);
     setProjects((currentProjects) => {
-      const updatedProjects = currentProjects.map((p) => (p.id === updated.id ? updated : p));
+      const updatedProjects = currentProjects.map((p) => (p.id === recalculated.id ? recalculated : p));
       const result = saveProjects(updatedProjects);
       if (!result.success) {
         addToast(result.error || 'Failed to save changes', 'error');
       }
       return updatedProjects;
     });
-    setSelectedProject((current) => (current?.id === updated.id ? updated : current));
+    setSelectedProject((current) => (current?.id === recalculated.id ? recalculated : current));
   }, [addToast]);
 
   const handleCardClick = useCallback((project) => {
     if (!project) return;
-    console.log('[nav] handleCardClick | id:', project.id, '| title:', project.title);
     pendingNavigateHomeRef.current = false;
     lastFocusedCardIdRef.current = project.id;
     setSelectedProject(project);
@@ -257,13 +296,31 @@ function DashboardContent() {
       addToast(error, 'error');
       return;
     }
-    if (!window.confirm(`Replace all projects with ${imported.length} projects from the backup?`)) return;
-    setProjects(imported);
-    const result = saveProjects(imported);
-    addToast(result.success ? `Imported ${imported.length} projects` : (result.error || 'Import failed'), result.success ? 'info' : 'error');
-  }, [addToast]);
+    if (window.confirm(`Replace all projects with ${imported.length} projects from the backup?`)) {
+      setProjects(imported);
+      const result = saveProjects(imported);
+      addToast(result.success ? `Imported ${imported.length} projects` : (result.error || 'Import failed'), result.success ? 'info' : 'error');
+      return;
+    }
+    // Merge: skip duplicates by ID, add new ones
+    setProjects((current) => {
+      const existingIds = new Set(current.map((p) => p.id));
+      const merged = [...current, ...imported.filter((p) => !existingIds.has(p.id))];
+      const result = saveProjects(merged);
+      if (!result.success) addToast(result.error || 'Merge failed', 'error');
+      return merged;
+    });
+    addToast(`Merged ${imported.filter((p) => !projects.some((c) => c.id === p.id)).length} new projects`, 'info');
+  }, [addToast, projects]);
 
-  console.log('[render] DashboardContent | ready:', ready, '| selectedProject:', selectedProject?.id || null, '| projects:', projects.length);
+  const handleToggleDarkMode = useCallback(() => {
+    setIsDarkMode((prev) => {
+      const next = !prev;
+      localStorage.setItem(DARK_MODE_KEY, String(next));
+      document.documentElement.classList.toggle('dark', next);
+      return next;
+    });
+  }, []);
 
   return (
     <div className="min-h-screen">
@@ -290,6 +347,8 @@ function DashboardContent() {
                   onUpdateProject={handleUpdateProject}
                   onDeleteProject={handleDeleteProject}
                   onNotify={addToast}
+                  isDarkMode={isDarkMode}
+                  onToggleDarkMode={handleToggleDarkMode}
                 />
               </Suspense>
             </ErrorBoundary>
@@ -303,6 +362,8 @@ function DashboardContent() {
                 onSearchChange={setSearchQuery}
                 onExport={handleExport}
                 onImport={handleImport}
+                isDarkMode={isDarkMode}
+                onToggleDarkMode={handleToggleDarkMode}
               />
 
               {!ready ? (

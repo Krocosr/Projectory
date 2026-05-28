@@ -70,7 +70,7 @@ Next.js 14 App Router client-first SPA with API layer for OpenCode tooling. `'us
 ## Versioning
 
 - **Scheme**: `MAJOR.MINOR.PATCH` (semver)
-- **Current**: `0.2.0` — removed outer AnimatePresence, fixed blank page, fixed filter overlay
+- **Current**: `0.3.0` — console.log cleanup, SettingsTab duplicate fix, recalculateProject consistency
 - **Location**: `version` field in `package.json`
 - **Process**: Bump before commit after build verification. `npm run build` must pass.
 - **Commit pattern**: `v<version> — <short summary>` (e.g. `v0.1.1 — perf fixes, API routing, Settings cleanup`)
