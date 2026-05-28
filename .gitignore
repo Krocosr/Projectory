@@ -29,6 +29,7 @@ build/
 # AI / agent / MCP
 .agents/
 mcp.json
+.opencode/
 
 # Generated / user data
 backup/
