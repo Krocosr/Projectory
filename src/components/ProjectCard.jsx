@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PropTypes from 'prop-types';
 import { STATUSES, STATUS_STYLES, STATUS_COLORS, Z_INDEX } from '@/lib/constants';
-import { formatDeadlineForDisplay } from '@/lib/dateUtils';
+import { formatDeadlineForDisplay, formatLastWorked } from '@/lib/dateUtils';
 
 function StatusBadge({ status }) {
   const style = STATUS_STYLES[status] || STATUS_STYLES.Active;
@@ -195,8 +195,8 @@ function ProjectCard({ project, onClick, onUpdateProject, onDeleteProject }) {
           <div className="flex items-start justify-between mb-3">
             <StatusBadge status={status} />
             <div className="flex items-center gap-1 shrink-0 ml-3">
-              <span className="text-xs text-[var(--text-muted)] tabular-nums" title={project.lastWorked}>
-                {project.lastWorked}
+              <span className="text-xs text-[var(--text-muted)] tabular-nums" title={formatLastWorked(project.lastWorked)}>
+                {formatLastWorked(project.lastWorked)}
               </span>
               <button
                 onClick={handleMoreOptions}

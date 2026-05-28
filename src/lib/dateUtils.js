@@ -52,6 +52,20 @@ export function formatRelativeTime(iso) {
 }
 
 /**
+ * Format a project's lastWorked field safely.
+ * Handles both ISO timestamps and pre-formatted strings (seed data).
+ * @param {string} lastWorked - ISO timestamp or pre-formatted string
+ * @returns {string} Display-ready relative time
+ */
+export function formatLastWorked(lastWorked) {
+  if (!lastWorked) return '';
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(lastWorked)) {
+    return formatRelativeTime(lastWorked);
+  }
+  return lastWorked;
+}
+
+/**
  * Convert ISO date to input[type="date"] value format
  * @param {string} isoDate - ISO 8601 date string
  * @returns {string} Date in YYYY-MM-DD format

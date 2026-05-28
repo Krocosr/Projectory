@@ -5,6 +5,7 @@ import { createTodo, recalculateProject } from '@/lib/storage';
 import { computeProgress, computeNextStepText, getFirstActiveTodo } from '@/components/detail/shared';
 import PropTypes from 'prop-types';
 import { STATUS_COLORS } from '@/lib/constants';
+import { formatLastWorked } from '@/lib/dateUtils';
 import { OverviewTab, TodosTab, WorkspaceTab, TimelineTab, SettingsTab, EditTodoModal } from '@/components/detail';
 
 
@@ -43,7 +44,7 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
     const updated = recalculateProject({
       ...p,
       todos: newTodos,
-      lastWorked: 'just now',
+      lastWorked: new Date().toISOString(),
       timeline: [...(p.timeline || []), { date: new Date().toISOString(), action: `Added todo: ${text}` }],
     });
     onUpdate(updated);
@@ -64,7 +65,7 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
     const updated = recalculateProject({
       ...p,
       todos: newTodos,
-      lastWorked: 'just now',
+      lastWorked: new Date().toISOString(),
       timeline: [...(p.timeline || []), { date: new Date().toISOString(), action: `Updated todo: ${editedTodo.text}` }],
     });
     onUpdate(updated);
@@ -83,7 +84,7 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
     const updated = recalculateProject({
       ...p,
       todos: newTodos,
-      lastWorked: 'just now',
+      lastWorked: new Date().toISOString(),
       timeline: [...(p.timeline || []), {
         date: new Date().toISOString(),
         action: `Marked "${toggled?.text || 'unknown'}" as ${toggled?.done ? 'done' : 'pending'}`,
@@ -103,7 +104,7 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
     const updated = recalculateProject({
       ...p,
       todos: newTodos,
-      lastWorked: 'just now',
+      lastWorked: new Date().toISOString(),
       timeline: [...(p.timeline || []), { date: new Date().toISOString(), action: `Removed todo: "${removed?.text}"` }],
     });
     onUpdate(updated);
@@ -203,7 +204,7 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
           </div>
         </div>
         <span className="text-xs text-[var(--text-muted)] tabular-nums shrink-0 ml-4">
-          worked {project.lastWorked}
+          worked {formatLastWorked(project.lastWorked)}
         </span>
       </div>
 

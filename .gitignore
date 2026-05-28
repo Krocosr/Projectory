@@ -26,6 +26,13 @@ build/
 .stylelintcache
 .node_repl_history
 
+# AI / agent / MCP
+.claude/
+.agents/
+mcp.json
+
 # Generated / user data
+backup/
+roadmap/
 codemap.html
 data/projects.json

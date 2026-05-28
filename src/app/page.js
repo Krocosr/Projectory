@@ -167,6 +167,37 @@ function DashboardContent() {
     });
   }, [addToast]);
 
+  // Poll for external changes (from OpenCode tools) so they appear live in the browser
+  const lastPollMtimeRef = useRef(null);
+  const pollIntervalRef = useRef(null);
+  useEffect(() => {
+    if (!ready) return;
+    const poll = async () => {
+      try {
+        const res = await fetch('/api/projects/poll');
+        if (!res.ok) return;
+        const { modified } = await res.json();
+        if (modified === null) return;
+        if (lastPollMtimeRef.current !== null && modified !== lastPollMtimeRef.current) {
+          const dataRes = await fetch('/api/projects');
+          if (!dataRes.ok) return;
+          const { projects: serverProjects } = await dataRes.json();
+          if (serverProjects && serverProjects.length > 0) {
+            setProjects(serverProjects);
+            const { saveProjects } = await import('@/lib/storage');
+            saveProjects(serverProjects);
+          }
+        }
+        lastPollMtimeRef.current = modified;
+      } catch {
+        // Server may not be running - silently ignore
+      }
+    };
+    poll();
+    pollIntervalRef.current = setInterval(poll, 3000);
+    return () => { if (pollIntervalRef.current) clearInterval(pollIntervalRef.current); };
+  }, [ready]);
+
   // Sync selected project when URL changes (handles browser back/forward)
   const projectParam = searchParams.get('project');
   useEffect(() => {

@@ -19,13 +19,16 @@ By default, the API listens on `http://localhost:3000`. Set `DEADLINER_API` env 
 
 ## Available Tools
 
-Three tools are registered under the `deadliner` namespace:
-
 | Tool | Description |
 |------|-------------|
 | `deadliner_read_projects` | List all projects with summary (title, status, progress %, todo counts) |
 | `deadliner_read_project` | Get full project detail by ID (all fields, todos, timeline, notes, links, assets) |
 | `deadliner_read_todos` | Get todos for a project, optionally filtered by `all`, `pending`, or `done` |
+| `deadliner_toggle_todo` | Toggle a todo's done/undone status (or set explicitly with `done` param) |
+| `deadliner_update_todo` | Update a todo's text, priority, or details |
+| `deadliner_add_todo` | Add a new todo to a project |
+| `deadliner_remove_todo` | Remove/delete a todo from a project |
+| `deadliner_update_project` | Update project fields (notes, status, deadline, goal, description, title, etc.) |
 
 ## API Routes
 
@@ -34,12 +37,16 @@ Three tools are registered under the `deadliner` namespace:
 | `GET` | `/api/projects` | List all projects |
 | `POST` | `/api/projects` | Create or update a single project |
 | `PUT` | `/api/projects` | Replace all projects (bulk sync) |
+| `GET` | `/api/projects/poll` | Get file mtime for live-sync polling |
 | `GET` | `/api/projects/[id]` | Get a single project |
 | `PATCH` | `/api/projects/[id]` | Partial update of a project |
 | `DELETE` | `/api/projects/[id]` | Delete a project |
+| `POST` | `/api/projects/[id]/todos` | Add a todo to a project |
+| `PATCH` | `/api/projects/[id]/todos/[todoId]` | Update/toggle a todo |
+| `DELETE` | `/api/projects/[id]/todos/[todoId]` | Remove a todo |
 
 - **Storage**: File-based at `data/projects.json` (Next.js server-side only)
-- **Client sync**: `saveProjects()` automatically syncs to API via `PUT /api/projects` (best-effort, silent failure)
+- **Client sync**: `saveProjects()` automatically syncs to API via `PUT /api/projects` (best-effort, silent failure). The browser polls `GET /api/projects/poll` every 3 seconds and re-loads data when external modifications are detected — changes from write tools appear live without page refresh.
 - **CLI**: `node scripts/deadliner-cli.mjs list` — set `DEADLINER_API` env var for custom port
 
 ## Data Model

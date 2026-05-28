@@ -59,18 +59,42 @@ Next.js 14 App Router client-first SPA with API layer for OpenCode tooling. `'us
 | `GET` | `/api/projects` | List all projects |
 | `POST` | `/api/projects` | Create or update a single project |
 | `PUT` | `/api/projects` | Replace all projects (bulk sync) |
+| `GET` | `/api/projects/poll` | Get `data/projects.json` mtime for live-sync polling |
 | `GET` | `/api/projects/[id]` | Get a single project |
-| `PATCH` | `/api/projects/[id]` | Partial update of a project |
+| `PATCH` | `/api/projects/[id]` | Partial update of a project (notes, status, deadline, etc.) |
 | `DELETE` | `/api/projects/[id]` | Delete a project |
+| `POST` | `/api/projects/[id]/todos` | Add a todo to a project |
+| `PATCH` | `/api/projects/[id]/todos/[todoId]` | Update/toggle a todo |
+| `DELETE` | `/api/projects/[id]/todos/[todoId]` | Remove a todo |
 
 - **Storage**: File-based at `data/projects.json` (Next.js server-side only)
 - **Client sync**: `saveProjects()` automatically syncs to API via `PUT /api/projects` (best-effort, silent failure)
+- **Live sync**: `page.js` polls `GET /api/projects/poll` every 3s. When mtime differs, it re-fetches projects from API and updates localStorage + state. Changes from write tools appear live without page refresh.
 - **CLI**: `node scripts/deadliner-cli.mjs list` — set `DEADLINER_API` env var for custom port
+
+## OpenCode Tools
+
+Tools are defined in `.opencode/tools/deadliner.ts`. Available tools:
+
+| Tool | Description |
+|------|-------------|
+| `deadliner_read_projects` | List all projects |
+| `deadliner_read_project` | Get full project detail by ID |
+| `deadliner_read_todos` | Get todos for a project (filtered) |
+| `deadliner_toggle_todo` | Toggle a todo's done/undone status |
+| `deadliner_update_todo` | Update a todo's text/priority/details |
+| `deadliner_add_todo` | Add a new todo to a project |
+| `deadliner_remove_todo` | Remove a todo from a project |
+| `deadliner_update_project` | Update project fields (notes, status, deadline, title, etc.) |
+
+- **Import** from `.opencode/tools/deadliner.ts` in the `apiFetch` helper
+- **Server must be running** (`npm run dev`) for API-based tools
+- **Write tools** modify `data/projects.json` via the API — the browser detects the change via polling (3s interval) and updates live
 
 ## Versioning
 
 - **Scheme**: `MAJOR.MINOR.PATCH` (semver)
-- **Current**: `0.3.0` — console.log cleanup, SettingsTab duplicate fix, recalculateProject consistency
+- **Current**: `0.4.0` — Write tools (toggle/update/add/remove todo, update project) + live-sync polling
 - **Location**: `version` field in `package.json`
 - **Process**: Bump before commit after build verification. `npm run build` must pass.
 - **Commit pattern**: `v<version> — <short summary>` (e.g. `v0.1.1 — perf fixes, API routing, Settings cleanup`)
@@ -78,9 +102,3 @@ Next.js 14 App Router client-first SPA with API layer for OpenCode tooling. `'us
 ## Gotchas
 
 - **No outer AnimatePresence** — `page.js` no longer wraps the dashboard↔detail transition in `AnimatePresence`. The grid disappears instantly when `selectedProject` changes; the detail gets a simple 150ms opacity fade-in. No `mode="wait"`/`mode="popLayout"` to block or overlap.
-
-## Known Bug (Fixed): Blank page / filter overlay on dashboard↔detail navigation
-
-**Root cause**: Outer `AnimatePresence mode="wait"` blocked the detail view from mounting until the grid's exit animation completed. A re-render during the exit (from URL race, auto-save, filter change) could restart/cancel the exit, leaving the detail perpetually unmounted (blank page). With `mode="popLayout"`, the grid stayed absolute-positioned behind the entering detail, causing a "project over dashboard" visual overlap when filters were active.
-
-**Fix (v0.2.0)**: Removed outer `AnimatePresence` entirely. Grid disappears instantly on navigation. Detail fades in via standalone `motion.div`. This eliminates the animation race, the blank page, and the overlay issue simultaneously. Paired with `pendingNavigateHomeRef` guard and stable `projectParam` dependency in `searchParams` effect to handle URL race conditions.
