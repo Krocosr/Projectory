@@ -51,8 +51,12 @@ export function getActiveTodos(projects, sortBy = 'priority') {
       return a.projectTitle.localeCompare(b.projectTitle);
     }
 
-    if (sortBy === 'created') {
+    if (sortBy === 'newest') {
       return (b.createdAt || '').localeCompare(a.createdAt || '');
+    }
+
+    if (sortBy === 'oldest') {
+      return (a.createdAt || '').localeCompare(b.createdAt || '');
     }
 
     return 0;

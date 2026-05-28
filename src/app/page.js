@@ -414,6 +414,8 @@ function DashboardContent() {
                     onNotify={addToast}
                     isDarkMode={isDarkMode}
                     onToggleDarkMode={handleToggleDarkMode}
+                    onToggleSidebar={handleToggleSidebar}
+                    activeTodosCount={aggregatedTodos.length}
                   />
                 </Suspense>
               </ErrorBoundary>

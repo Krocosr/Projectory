@@ -22,8 +22,15 @@ export default function TodosTab({ project, onAddTodo, onToggleTodo, onRemoveTod
     doneTodos: (project.todos || []).filter((t) => t.done),
   }), [project.todos]);
 
-  const sortTodos = useCallback((todos) => {
-    if (sortBy === 'default' || !todos) return todos;
+  const sortTodos = useCallback((todos, isDone) => {
+    if (sortBy === 'default') {
+      if (isDone) {
+        const sorted = [...todos];
+        sorted.sort((a, b) => b.id - a.id);
+        return sorted;
+      }
+      return todos;
+    }
     const sorted = [...todos];
     switch (sortBy) {
       case 'priority-high':
@@ -56,7 +63,7 @@ export default function TodosTab({ project, onAddTodo, onToggleTodo, onRemoveTod
 
   const displayedTodos = useMemo(() => {
     const todos = section === 'Active' ? activeTodos : doneTodos;
-    return sortTodos(todos);
+    return sortTodos(todos, section === 'Done');
   }, [section, activeTodos, doneTodos, sortTodos]);
 
   const handleReorderActive = useCallback((reordered) => {

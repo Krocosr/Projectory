@@ -1,9 +1,17 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PropTypes from 'prop-types';
 import { PRIORITY_STYLES } from '@/lib/constants';
 import { formatDeadlineForDisplay } from '@/lib/dateUtils';
+
+const SORT_OPTIONS = [
+  { value: 'priority', label: 'Priority ↓' },
+  { value: 'deadline', label: 'Deadline ↑' },
+  { value: 'project', label: 'A → Z' },
+  { value: 'newest', label: 'Newest' },
+  { value: 'oldest', label: 'Oldest' },
+];
 
 function TodoItem({ todo, onToggle, onNavigate, onDragStart, onDragOver, onDrop, isDragging }) {
   const truncateProjectName = (name) => {
@@ -78,13 +86,23 @@ TodoItem.propTypes = {
 
 export default function ActiveTodosSidebar({ isOpen, todos, onToggleTodo, onNavigateToProject }) {
   const [sortBy, setSortBy] = useState('priority');
+  const [searchQuery, setSearchQuery] = useState('');
   const [displayTodos, setDisplayTodos] = useState([]);
   const [draggedTodo, setDraggedTodo] = useState(null);
 
-  // Update display todos when todos or sortBy changes
+  // Filter and update display todos when todos, sortBy, or search changes
+  const filteredTodos = useMemo(() => {
+    if (!searchQuery.trim()) return todos;
+    const query = searchQuery.toLowerCase();
+    return todos.filter(todo => 
+      todo.text.toLowerCase().includes(query) || 
+      todo.projectTitle.toLowerCase().includes(query)
+    );
+  }, [todos, searchQuery]);
+
   useEffect(() => {
-    setDisplayTodos([...todos]);
-  }, [todos, sortBy]);
+    setDisplayTodos([...filteredTodos]);
+  }, [filteredTodos, sortBy]);
 
   const handleDragStart = (e, todo) => {
     setDraggedTodo(todo);
@@ -150,24 +168,33 @@ export default function ActiveTodosSidebar({ isOpen, todos, onToggleTodo, onNavi
             </h2>
           </div>
 
-          <div className="px-5 py-3 border-b border-[var(--border-subtle)] shrink-0">
-            <label htmlFor="sort-select" className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider mb-1.5 block">
-              Sort by
-            </label>
-            <select
-              id="sort-select"
-              value={sortBy}
-              onChange={(e) => handleSortChange(e.target.value)}
-              className="w-full px-3 py-2 text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-clay)] focus:border-transparent"
-            >
-              <option value="priority">Priority</option>
-              <option value="deadline">Deadline</option>
-              <option value="project">Project</option>
-              <option value="created">Created</option>
-            </select>
+          <div className="px-5 py-3 border-b border-[var(--border-subtle)] shrink-0 space-y-2">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search todos..."
+              className="w-full px-3 py-2 text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-clay)] focus:border-transparent"
+              aria-label="Search todos"
+            />
+            <div className="flex items-center gap-1.5">
+              <svg className="w-3 h-3 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h6l-4 5h4l-5 7h6m3-16l4 5h-4l5 7h-6" />
+              </svg>
+              <select
+                value={sortBy}
+                onChange={(e) => handleSortChange(e.target.value)}
+                className="text-[11px] px-1.5 py-0.5 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-secondary)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 appearance-none cursor-pointer hover:border-[var(--text-muted)] transition-colors"
+                aria-label="Sort todos"
+              >
+                {SORT_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto overscroll-contain">
             {displayTodos.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center px-8 py-16">
                 <div className="w-12 h-12 rounded-xl bg-[var(--border-subtle)] flex items-center justify-center mb-3">
