@@ -5,7 +5,7 @@ import PropTypes from 'prop-types';
 
 const FILTERS = ['All', 'Active', 'Paused', 'Ideas', 'Finished', 'Archived'];
 
-const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterChange, projectCounts, searchQuery, onSearchChange, onExport, onImport, isDarkMode, onToggleDarkMode }) {
+const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterChange, projectCounts, searchQuery, onSearchChange, onExport, onImport, isDarkMode, onToggleDarkMode, onToggleSidebar, activeTodosCount }) {
   const fileInputRef = useRef(null);
 
   const handleImportClick = () => {
@@ -49,6 +49,20 @@ const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterCh
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
             </svg>
+          </button>
+          <button
+            onClick={onToggleSidebar}
+            title="Active todos"
+            className="relative p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--border-subtle)]/50 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+            </svg>
+            {activeTodosCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-[var(--accent-clay)] text-white text-[9px] font-bold flex items-center justify-center">
+                {activeTodosCount > 9 ? '9+' : activeTodosCount}
+              </span>
+            )}
           </button>
           <button
             onClick={onToggleDarkMode}
@@ -156,6 +170,8 @@ DashboardHeader.propTypes = {
   onImport: PropTypes.func,
   isDarkMode: PropTypes.bool,
   onToggleDarkMode: PropTypes.func,
+  onToggleSidebar: PropTypes.func,
+  activeTodosCount: PropTypes.number,
 };
 
 export default DashboardHeader;

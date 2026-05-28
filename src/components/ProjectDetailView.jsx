@@ -6,13 +6,12 @@ import { computeProgress, computeNextStepText, getFirstActiveTodo } from '@/comp
 import PropTypes from 'prop-types';
 import { STATUS_COLORS } from '@/lib/constants';
 import { formatLastWorked } from '@/lib/dateUtils';
-import { OverviewTab, TodosTab, WorkspaceTab, TimelineTab, SettingsTab, EditTodoModal } from '@/components/detail';
-import ScratchpadTab from '@/components/detail/ScratchpadTab';
+import { OverviewTab, TodosTab, WorkspaceTab, TimelineTab, SettingsTab, EditTodoModal, ScratchpadTab } from '@/components/detail';
 
 
 const TABS = ['Overview', 'Todos', 'Workspace', 'Scratchpad', 'Timeline', 'Settings'];
 
-export default function ProjectDetailView({ project, onBack, onUpdateProject, onDeleteProject, onNotify, isDarkMode, onToggleDarkMode }) {
+export default function ProjectDetailView({ project, onBack, onUpdateProject, onDeleteProject, onNotify, isDarkMode, onToggleDarkMode, onToggleSidebar, activeTodosCount }) {
   const [activeTab, setActiveTab] = useState('Overview');
   const [editingTodo, setEditingTodo] = useState(null);
   const [settingsHasUnsavedChanges, setSettingsHasUnsavedChanges] = useState(false);
@@ -163,6 +162,25 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
           Back to Projects
         </motion.button>
         <div className="flex items-center gap-2">
+          {onToggleSidebar && (
+            <motion.button
+              onClick={onToggleSidebar}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="relative flex items-center gap-1.5 p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--border-subtle)]/50 transition-colors"
+              aria-label="Toggle active todos sidebar"
+              title="Toggle active todos sidebar"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+              </svg>
+              {activeTodosCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--accent-clay)] text-white text-[9px] font-bold flex items-center justify-center">
+                  {activeTodosCount > 9 ? '9+' : activeTodosCount}
+                </span>
+              )}
+            </motion.button>
+          )}
           <motion.button
             onClick={onToggleDarkMode}
             whileHover={{ scale: 1.05 }}
@@ -403,4 +421,6 @@ ProjectDetailView.propTypes = {
   onNotify: PropTypes.func,
   isDarkMode: PropTypes.bool,
   onToggleDarkMode: PropTypes.func,
+  onToggleSidebar: PropTypes.func,
+  activeTodosCount: PropTypes.number,
 };
