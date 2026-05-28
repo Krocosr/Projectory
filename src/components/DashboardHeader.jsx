@@ -5,7 +5,7 @@ import PropTypes from 'prop-types';
 
 const FILTERS = ['All', 'Active', 'Paused', 'Ideas', 'Finished', 'Archived'];
 
-const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterChange, projectCounts, searchQuery, onSearchChange, onExport, onImport, isDarkMode, onToggleDarkMode, onToggleSidebar, activeTodosCount }) {
+const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterChange, projectCounts, searchQuery, onSearchChange, onExport, onImport, isDarkMode, onToggleDarkMode, onToggleSidebar, activeTodosCount, onCleanupArchive }) {
   const fileInputRef = useRef(null);
 
   const handleImportClick = () => {
@@ -42,6 +42,15 @@ const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterCh
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {activeFilter === 'Archived' && projectCounts?.Archived > 0 && (
+            <button
+              onClick={onCleanupArchive}
+              title="Delete all archived projects permanently"
+              className="px-3 py-1.5 rounded-lg text-xs font-medium text-red-600 hover:text-white hover:bg-red-600 border border-red-600 transition-colors"
+            >
+              Cleanup Archive
+            </button>
+          )}
           <button
             onClick={onExport}
             title="Export projects as JSON backup"
@@ -192,6 +201,7 @@ DashboardHeader.propTypes = {
   onToggleDarkMode: PropTypes.func,
   onToggleSidebar: PropTypes.func,
   activeTodosCount: PropTypes.number,
+  onCleanupArchive: PropTypes.func,
 };
 
 export default DashboardHeader;

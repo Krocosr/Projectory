@@ -235,14 +235,14 @@ function DashboardContent() {
         return searchText.includes(q);
       });
     }
-    if (activeFilter === 'All') return list;
+    if (activeFilter === 'All') return list.filter((p) => p.status !== 'Archived');
     if (activeFilter === 'Ideas') return list.filter((p) => p.status === 'Incubating' || p.status === 'Waiting');
     if (activeFilter === 'Archived') return list.filter((p) => p.status === 'Archived');
     return list.filter((p) => p.status === activeFilter);
   }, [projects, activeFilter, deferredSearch]);
 
   const projectCounts = useMemo(() => {
-    const counts = { total: projects.length };
+    const counts = { total: projects.filter((p) => p.status !== 'Archived').length };
     projects.forEach((p) => {
       counts[p.status] = (counts[p.status] || 0) + 1;
     });
@@ -309,6 +309,40 @@ function DashboardContent() {
     router.push('/', { scroll: false });
     addToast('Project archived');
   }, [router, addToast, setSelectedProject]);
+
+  const handleDeletePermanent = useCallback((id) => {
+    pendingNavigateHomeRef.current = true;
+    setSelectedProject(null);
+    setProjects((current) => {
+      const updated = current.filter((p) => p.id !== id);
+      const result = saveProjects(updated);
+      if (!result.success) {
+        addToast(result.error || 'Failed to save changes', 'error');
+      }
+      return updated;
+    });
+    router.push('/', { scroll: false });
+    addToast('Project deleted permanently');
+  }, [router, addToast, setSelectedProject]);
+
+  const handleCleanupArchive = useCallback(() => {
+    const archivedCount = projects.filter((p) => p.status === 'Archived').length;
+    if (archivedCount === 0) {
+      addToast('No archived projects to clean up', 'info');
+      return;
+    }
+    if (window.confirm(`Permanently delete all ${archivedCount} archived projects? This cannot be undone.`)) {
+      setProjects((current) => {
+        const updated = current.filter((p) => p.status !== 'Archived');
+        const result = saveProjects(updated);
+        if (!result.success) {
+          addToast(result.error || 'Failed to save changes', 'error');
+        }
+        return updated;
+      });
+      addToast(`Deleted ${archivedCount} archived projects`);
+    }
+  }, [projects, addToast]);
 
   const handleBack = useCallback(() => {
     pendingNavigateHomeRef.current = true;
@@ -458,6 +492,7 @@ function DashboardContent() {
                   onToggleDarkMode={handleToggleDarkMode}
                   onToggleSidebar={handleToggleSidebar}
                   activeTodosCount={aggregatedTodos.length}
+                  onCleanupArchive={handleCleanupArchive}
                 />
 
                 {!ready ? (
@@ -501,6 +536,7 @@ function DashboardContent() {
                                       onClick={handleCardClick}
                                       onUpdateProject={handleUpdateProject}
                                       onDeleteProject={handleDeleteProject}
+                                      onDeletePermanent={handleDeletePermanent}
                                     />
                                   </ErrorBoundary>
                                 </div>
