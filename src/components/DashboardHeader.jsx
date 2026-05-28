@@ -5,7 +5,7 @@ import PropTypes from 'prop-types';
 
 const FILTERS = ['All', 'Active', 'Paused', 'Ideas', 'Finished', 'Archived'];
 
-const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterChange, projectCounts, searchQuery, onSearchChange, onExport, onImport, isDarkMode, onToggleDarkMode }) {
+const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterChange, projectCounts, searchQuery, onSearchChange, onExport, onImport, isDarkMode, onToggleDarkMode, onOpenScratchpad }) {
   const fileInputRef = useRef(null);
 
   const handleImportClick = () => {
@@ -48,6 +48,15 @@ const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterCh
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+            </svg>
+          </button>
+          <button
+            onClick={onOpenScratchpad}
+            title="Open scratchpad"
+            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--border-subtle)]/50 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
             </svg>
           </button>
           <button
@@ -156,6 +165,7 @@ DashboardHeader.propTypes = {
   onImport: PropTypes.func,
   isDarkMode: PropTypes.bool,
   onToggleDarkMode: PropTypes.func,
+  onOpenScratchpad: PropTypes.func,
 };
 
 export default DashboardHeader;
