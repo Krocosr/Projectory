@@ -9,6 +9,8 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import ProjectCard from '@/components/ProjectCard';
 import { seedProjects, SEED_KEY, createProject } from '@/app/data';
 import { loadProjects, saveProjects, recoverFromApi, exportToFile, importFromFile, recalculateProject } from '@/lib/storage';
+import { getActiveTodos } from '@/lib/todoAggregator';
+import ActiveTodosSidebar from '@/components/ActiveTodosSidebar';
 
 // Lazy load only the heavy ProjectDetailView component
 // ProjectCard is small (~210 lines) and used frequently, so keep it eager for better UX
@@ -105,6 +107,7 @@ function DashboardContent() {
   const { toasts, addToast, dismissToast } = useToast();
   const lastFocusedCardIdRef = useRef(null);
   const pendingNavigateHomeRef = useRef(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const DARK_MODE_KEY = 'deadliner_dark_mode';
   const [isDarkMode, setIsDarkMode] = useState(false);
 
@@ -246,6 +249,8 @@ function DashboardContent() {
     return counts;
   }, [projects]);
 
+  const aggregatedTodos = useMemo(() => getActiveTodos(projects), [projects]);
+
   const handleNewProject = useCallback((form) => {
     const created = createProject(form);
     setProjects((current) => {
@@ -344,6 +349,33 @@ function DashboardContent() {
     addToast(`Merged ${imported.filter((p) => !projects.some((c) => c.id === p.id)).length} new projects`, 'info');
   }, [addToast, projects]);
 
+  const handleToggleSidebar = useCallback(() => {
+    setIsSidebarOpen((prev) => !prev);
+  }, []);
+
+  const handleToggleTodoFromSidebar = useCallback((projectId, todoId) => {
+    setProjects((current) => {
+      const updated = current.map((p) => {
+        if (p.id !== projectId) return p;
+        const newTodos = (p.todos || []).map((t) =>
+          t.id === todoId ? { ...t, done: !t.done } : t
+        );
+        return recalculateProject({ ...p, todos: newTodos });
+      });
+      const result = saveProjects(updated);
+      if (!result.success) {
+        addToast(result.error || 'Failed to save changes', 'error');
+      }
+      return updated;
+    });
+  }, [addToast]);
+
+  const handleSidebarNavigate = useCallback((projectId) => {
+    setIsSidebarOpen(false);
+    const project = projects.find((p) => p.id === projectId);
+    if (project) handleCardClick(project);
+  }, [projects, handleCardClick]);
+
   const handleToggleDarkMode = useCallback(() => {
     setIsDarkMode((prev) => {
       const next = !prev;
@@ -395,6 +427,8 @@ function DashboardContent() {
                 onImport={handleImport}
                 isDarkMode={isDarkMode}
                 onToggleDarkMode={handleToggleDarkMode}
+                onToggleSidebar={handleToggleSidebar}
+                activeTodosCount={aggregatedTodos.length}
               />
 
               {!ready ? (
@@ -439,6 +473,14 @@ function DashboardContent() {
             </>
           )}
       </div>
+
+      <ActiveTodosSidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        todos={aggregatedTodos}
+        onToggleTodo={handleToggleTodoFromSidebar}
+        onNavigateToProject={handleSidebarNavigate}
+      />
 
       <NewProjectModal
         isOpen={isNewModalOpen}
