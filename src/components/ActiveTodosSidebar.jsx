@@ -87,10 +87,9 @@ TodoItem.propTypes = {
 export default function ActiveTodosSidebar({ isOpen, todos, onToggleTodo, onNavigateToProject }) {
   const [sortBy, setSortBy] = useState('priority');
   const [searchQuery, setSearchQuery] = useState('');
-  const [displayTodos, setDisplayTodos] = useState([]);
   const [draggedTodo, setDraggedTodo] = useState(null);
 
-  // Filter and update display todos when todos, sortBy, or search changes
+  // Filter todos based on search
   const filteredTodos = useMemo(() => {
     if (!searchQuery.trim()) return todos;
     const query = searchQuery.toLowerCase();
@@ -100,13 +99,50 @@ export default function ActiveTodosSidebar({ isOpen, todos, onToggleTodo, onNavi
     );
   }, [todos, searchQuery]);
 
-  useEffect(() => {
-    setDisplayTodos([...filteredTodos]);
+  // Sort filtered todos
+  const sortedTodos = useMemo(() => {
+    const sorted = [...filteredTodos];
+    const priorityOrder = { High: 0, Medium: 1, Low: 2 };
+    
+    switch (sortBy) {
+      case 'priority':
+        sorted.sort((a, b) => (priorityOrder[a.priority] ?? 1) - (priorityOrder[b.priority] ?? 1));
+        break;
+      case 'deadline':
+        sorted.sort((a, b) => {
+          const dA = a.projectDeadline ? new Date(a.projectDeadline) : null;
+          const dB = b.projectDeadline ? new Date(b.projectDeadline) : null;
+          if (dA && dB) return dA - dB;
+          if (dA) return -1;
+          if (dB) return 1;
+          return 0;
+        });
+        break;
+      case 'project':
+        sorted.sort((a, b) => a.projectTitle.localeCompare(b.projectTitle));
+        break;
+      case 'newest':
+        sorted.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+        break;
+      case 'oldest':
+        sorted.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+        break;
+    }
+    return sorted;
   }, [filteredTodos, sortBy]);
+
+  // Display todos (can be reordered via DND)
+  const [displayTodos, setDisplayTodos] = useState([]);
+
+  // Update display todos when sorted todos change
+  useEffect(() => {
+    setDisplayTodos([...sortedTodos]);
+  }, [sortedTodos]);
 
   const handleDragStart = (e, todo) => {
     setDraggedTodo(todo);
     e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setDragImage(new Image(), 0, 0);
   };
 
   const handleDragOver = (e) => {
@@ -143,8 +179,6 @@ export default function ActiveTodosSidebar({ isOpen, todos, onToggleTodo, onNavi
 
   const handleSortChange = (newSort) => {
     setSortBy(newSort);
-    // Reset to sorted order from parent
-    setDisplayTodos([...todos]);
   };
 
   return (
@@ -166,17 +200,6 @@ export default function ActiveTodosSidebar({ isOpen, todos, onToggleTodo, onNavi
                 {displayTodos.length}
               </span>
             </h2>
-          </div>
-
-          <div className="px-5 py-3 border-b border-[var(--border-subtle)] shrink-0 space-y-2">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search todos..."
-              className="w-full px-3 py-2 text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-clay)] focus:border-transparent"
-              aria-label="Search todos"
-            />
             <div className="flex items-center gap-1.5">
               <svg className="w-3 h-3 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h6l-4 5h4l-5 7h6m3-16l4 5h-4l5 7h-6" />
@@ -194,7 +217,18 @@ export default function ActiveTodosSidebar({ isOpen, todos, onToggleTodo, onNavi
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto overscroll-contain">
+          <div className="px-5 py-3 border-b border-[var(--border-subtle)] shrink-0">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search todos..."
+              className="w-full px-3 py-2 text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-clay)] focus:border-transparent"
+              aria-label="Search todos"
+            />
+          </div>
+
+          <div className="flex-1 overflow-y-auto overscroll-contain" onWheel={(e) => e.stopPropagation()}>
             {displayTodos.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center px-8 py-16">
                 <div className="w-12 h-12 rounded-xl bg-[var(--border-subtle)] flex items-center justify-center mb-3">
