@@ -32,15 +32,7 @@ Tired of context-switching between a dozen tabs? Projectory gives you a **single
 | Deadlines sneak up on you | Clear timeline + overdue indicators |
 | Distracting bright UIs | Built-in **dark mode** that sticks |
 
----
 
-## Demo
-
-<p align="center">
-  <i>(screenshot or GIF here shows the dashboard, detail view, and dark mode)</i>
-</p>
-
----
 
 ## Features
 

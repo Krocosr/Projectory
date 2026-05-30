@@ -30,6 +30,7 @@ build/
 .agents/
 mcp.json
 .opencode/
+AGENTS.md
 
 # Generated / user data
 backup/
