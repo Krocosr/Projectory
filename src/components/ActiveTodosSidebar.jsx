@@ -5,6 +5,7 @@ import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import PropTypes from 'prop-types';
 import { PRIORITY_STYLES } from '@/lib/constants';
 import { formatDeadlineForDisplay } from '@/lib/dateUtils';
+import { Input } from '@/components/ui';
 
 const SORT_OPTIONS = [
   { value: 'priority', label: 'Priority ↓' },
@@ -185,12 +186,11 @@ export default function ActiveTodosSidebar({ isOpen, todos, onToggleTodo, onNavi
           </div>
 
           <div className="px-5 py-3 border-b border-[var(--border-subtle)] shrink-0">
-            <input
+            <Input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search todos..."
-              className="w-full px-3 py-2 text-sm bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-clay)] focus:border-transparent"
               aria-label="Search todos"
             />
           </div>

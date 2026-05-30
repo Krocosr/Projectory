@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PropTypes from 'prop-types';
 import { formatRelativeTime } from '@/lib/dateUtils';
+import { Textarea, Button, SectionHeader } from '@/components/ui';
 
 const MAX_ENTRIES = 15;
 
@@ -59,26 +60,20 @@ export default function ScratchpadTab({ project, onUpdateProject, onNotify }) {
   return (
     <div className="space-y-6">
       <div>
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--accent-clay)]/10">
-            <svg className="w-4 h-4 text-[var(--accent-clay)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
-            </svg>
-          </div>
-          <h3 className="text-sm font-semibold text-[var(--text-primary)]">Scratchpad Log</h3>
-          <span className="text-xs text-[var(--text-muted)] tabular-nums">
-            {entryCount}/{MAX_ENTRIES}
-          </span>
-        </div>
+        <SectionHeader
+          icon={<svg className="w-4 h-4 text-[var(--accent-clay)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>}
+          label="Scratchpad Log"
+          count={`${entryCount}/${MAX_ENTRIES}`}
+        />
 
         <div className="pl-10 space-y-4">
           <form onSubmit={handleAddEntry} className="space-y-2">
-            <textarea
+            <Textarea
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               placeholder="Quick note or thought..."
               rows={3}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all resize-none"
+              className="px-3.5 py-2.5 rounded-xl"
               aria-label="Scratchpad note input"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -88,14 +83,14 @@ export default function ScratchpadTab({ project, onUpdateProject, onNotify }) {
               }}
             />
             <div className="flex items-center justify-between">
-              <button
+              <Button
                 type="submit"
                 disabled={!inputText.trim()}
-                className="px-4 py-1.5 rounded-lg text-xs font-semibold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ background: 'linear-gradient(135deg, var(--accent-clay), #B8603A)' }}
+                variant="gradient"
+                className="px-4 py-1.5"
               >
                 Add Note
-              </button>
+              </Button>
               {isAtLimit && (
                 <span className="text-xs text-[var(--accent-clay)]">
                   Max 15 notes. Adding a new note will remove the oldest.

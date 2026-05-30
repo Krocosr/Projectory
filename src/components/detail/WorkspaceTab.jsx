@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
+import { Input, Textarea, Button, SectionHeader } from '@/components/ui';
 
 export default function WorkspaceTab({ project, onUpdateProject, onNotify }) {
   const [noteText, setNoteText] = useState(project.notes || '');
@@ -91,67 +92,57 @@ export default function WorkspaceTab({ project, onUpdateProject, onNotify }) {
   return (
     <div className="space-y-6">
       <div>
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-clay)10' }}>
-            <svg className="w-4 h-4" style={{ color: 'var(--accent-clay)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </div>
-          <h3 className="text-sm font-semibold text-[var(--text-primary)]">Notes</h3>
-        </div>
+        <SectionHeader
+          icon={<svg className="w-4 h-4 text-[var(--accent-clay)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
+          label="Notes"
+        />
         <div className="pl-10 space-y-3">
           <textarea
             value={noteText}
             onChange={(e) => setNoteText(e.target.value)}
             placeholder="Write your notes here..."
             rows={6}
-            className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all resize-none"
+            className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-subtle)]/40 bg-[var(--bg-primary)] text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none hover:border-[var(--border-subtle)] hover:bg-[var(--bg-card)] focus:border-[var(--accent-clay)] focus:bg-[var(--bg-card)] focus:ring-2 focus:ring-[var(--accent-clay)]/30 transition-all resize-none"
             aria-label="Project notes"
           />
-          <button
-            onClick={handleSaveNotes}
-            className="px-4 py-1.5 rounded-lg text-xs font-semibold text-white transition-all"
-            style={{ background: 'linear-gradient(135deg, var(--accent-clay), #B8603A)' }}
-          >
+          <Button onClick={handleSaveNotes} variant="gradient" className="px-4 py-1.5">
             Save Notes
-          </button>
+          </Button>
         </div>
       </div>
 
       <div>
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-slate)10' }}>
-            <svg className="w-4 h-4" style={{ color: 'var(--accent-slate)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-            </svg>
-          </div>
-          <h3 className="text-sm font-semibold text-[var(--text-primary)]">Links</h3>
-        </div>
+        <SectionHeader
+          icon={<svg className="w-4 h-4 text-[var(--accent-slate)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>}
+          label="Links"
+          color="var(--accent-slate)"
+        />
         <div className="pl-10 space-y-3">
           <form onSubmit={handleAddLink} className="flex gap-2">
-            <input
+            <Input
               type="text"
               value={newLinkTitle}
               onChange={(e) => setNewLinkTitle(e.target.value)}
               placeholder="Title"
-              className="flex-1 px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm outline-none focus:ring-2 focus:ring-[var(--accent-slate)]/30 transition-all"
+              className="flex-1"
               aria-label="Link title"
             />
-            <input
+            <Input
               type="url"
               value={newLinkUrl}
               onChange={(e) => setNewLinkUrl(e.target.value)}
               placeholder="URL"
               aria-label="Link URL"
-              className="flex-1 px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm outline-none focus:ring-2 focus:ring-[var(--accent-slate)]/30 transition-all"
+              className="flex-1"
             />
-            <button
+            <Button
               type="submit"
-              className="px-3 py-2 rounded-lg text-xs font-semibold text-white transition-all"
+              variant="gradient"
+              className="px-3"
               style={{ background: 'var(--accent-slate)' }}
             >
               Add
-            </button>
+            </Button>
           </form>
           <div className="space-y-2">
             {(project.links || []).length > 0 ? project.links.map((link, i) => (
@@ -182,39 +173,37 @@ export default function WorkspaceTab({ project, onUpdateProject, onNotify }) {
       </div>
 
       <div>
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: '#5A8F6C10' }}>
-            <svg className="w-4 h-4" style={{ color: '#5A8F6C' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </div>
-          <h3 className="text-sm font-semibold text-[var(--text-primary)]">Assets</h3>
-        </div>
+        <SectionHeader
+          icon={<svg className="w-4 h-4" style={{ color: '#5A8F6C' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}
+          label="Assets"
+          color="#5A8F6C"
+        />
         <div className="pl-10 space-y-3">
           <form onSubmit={handleAddAsset} className="flex gap-2">
-            <input
+            <Input
               type="text"
               value={assetName}
               onChange={(e) => setAssetName(e.target.value)}
               placeholder="Asset name"
-              className="flex-1 px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm outline-none focus:ring-2 focus:ring-[#5A8F6C]/30 transition-all"
+              className="flex-1"
               aria-label="Asset name"
             />
-            <input
+            <Input
               type="text"
               value={assetUrl}
               onChange={(e) => setAssetUrl(e.target.value)}
               placeholder="URL or path (optional)"
               aria-label="Asset URL"
-              className="flex-1 px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm outline-none focus:ring-2 focus:ring-[#5A8F6C]/30 transition-all"
+              className="flex-1"
             />
-            <button
+            <Button
               type="submit"
-              className="px-3 py-2 rounded-lg text-xs font-semibold text-white transition-all"
+              variant="gradient"
+              className="px-3"
               style={{ background: '#5A8F6C' }}
             >
               Add
-            </button>
+            </Button>
           </form>
           <div className="space-y-2">
             {(project.assets || []).length > 0 ? project.assets.map((asset, i) => (

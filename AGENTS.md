@@ -94,7 +94,7 @@ Tools are defined in `.opencode/tools/projectory.ts`. Available tools:
 ## Versioning
 
 - **Scheme**: `MAJOR.MINOR.PATCH` (semver)
-- **Current**: `0.4.0` — Write tools (toggle/update/add/remove todo, update project) + live-sync polling
+- **Current**: `0.8.0` — UI primitives system (Input/Textarea/Select/Button/ProgressBar/SectionHeader), useRateLimit hook, theme toggle animation, scrollbars, sort dropdown, todo deadlines, empty input feedback, notes blend styling, currentFocus display
 - **Location**: `version` field in `package.json`
 - **Process**: Bump before commit after build verification. `npm run build` must pass.
 - **Commit pattern**: `v<version> — <short summary>` (e.g. `v0.1.1 — perf fixes, API routing, Settings cleanup`)

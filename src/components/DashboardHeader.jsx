@@ -2,10 +2,12 @@
 import { memo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import PropTypes from 'prop-types';
+import { useRateLimit } from '@/hooks/useRateLimit';
+import { PROJECT_SORT_OPTIONS } from '@/lib/constants';
 
 const FILTERS = ['All', 'Active', 'Paused', 'Ideas', 'Finished', 'Archived'];
 
-const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterChange, projectCounts, searchQuery, onSearchChange, onExport, onImport, isDarkMode, onToggleDarkMode, onToggleSidebar, activeTodosCount, onCleanupArchive }) {
+const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterChange, projectCounts, searchQuery, onSearchChange, onExport, onImport, isDarkMode, onToggleDarkMode, onToggleSidebar, activeTodosCount, onCleanupArchive, projectSortBy, onProjectSortChange }) {
   const fileInputRef = useRef(null);
 
   const handleImportClick = () => {
@@ -20,13 +22,10 @@ const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterCh
     e.target.value = '';
   };
 
-  const lastToggleRef = useRef(0);
-  const TOGGLE_COOLDOWN = 300; // 300ms rate limit to prevent seizures
+  const isToggleAllowed = useRateLimit(300);
 
   const handleToggleDarkMode = () => {
-    const now = Date.now();
-    if (now - lastToggleRef.current < TOGGLE_COOLDOWN) return;
-    lastToggleRef.current = now;
+    if (!isToggleAllowed()) return;
     onToggleDarkMode();
   };
 
@@ -132,7 +131,7 @@ const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterCh
         </div>
       </div>
 
-      <nav className="flex gap-1" role="tablist">
+      <nav className="flex items-center gap-1" role="tablist">
         {FILTERS.map((filter, i) => {
           const isActive = activeFilter === filter;
           const count = filter === 'All'
@@ -175,6 +174,21 @@ const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterCh
             </motion.button>
           );
         })}
+        <div className="nav-sort-wrap">
+          <svg className="nav-sort-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h6l-4 5h4l-5 7h6m3-16l4 5h-4l5 7h-6" />
+          </svg>
+          <select
+            value={projectSortBy || 'changed'}
+            onChange={(e) => onProjectSortChange?.(e.target.value)}
+            className="nav-sort-select"
+            aria-label="Sort projects"
+          >
+            {PROJECT_SORT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
       </nav>
     </header>
   );
@@ -202,6 +216,8 @@ DashboardHeader.propTypes = {
   onToggleSidebar: PropTypes.func,
   activeTodosCount: PropTypes.number,
   onCleanupArchive: PropTypes.func,
+  projectSortBy: PropTypes.string,
+  onProjectSortChange: PropTypes.func,
 };
 
 export default DashboardHeader;

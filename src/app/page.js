@@ -12,6 +12,8 @@ import { seedProjects, SEED_KEY, createProject } from '@/app/data';
 import { loadProjects, saveProjects, recoverFromApi, exportToFile, importFromFile, recalculateProject } from '@/lib/storage';
 import { getActiveTodos } from '@/lib/todoAggregator';
 import ActiveTodosSidebar from '@/components/ActiveTodosSidebar';
+import { DEFAULT_PROJECT_SORT } from '@/lib/constants';
+import { Button } from '@/components/ui';
 
 // Lazy load only the heavy ProjectDetailView component
 // ProjectCard is small (~210 lines) and used frequently, so keep it eager for better UX
@@ -73,13 +75,9 @@ function EmptyPortfolio({ onNewProject }) {
       <p className="text-sm text-[var(--text-secondary)] mb-6 max-w-sm mx-auto">
         Create your first project to start tracking your work.
       </p>
-      <button
-        onClick={onNewProject}
-        className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
-        style={{ background: 'linear-gradient(135deg, var(--accent-clay), #B8603A)' }}
-      >
+      <Button onClick={onNewProject} variant="gradient" className="px-5 py-2.5 rounded-xl text-sm">
         Create your first project
-      </button>
+      </Button>
     </div>
   );
 }
@@ -221,6 +219,8 @@ function DashboardContent() {
     }
   }, [projectParam, ready, projects, router]);
 
+  const [projectSortBy, setProjectSortBy] = useState(DEFAULT_PROJECT_SORT);
+
   const filteredProjects = useMemo(() => {
     let list = projects;
     if (deferredSearch.trim()) {
@@ -235,11 +235,36 @@ function DashboardContent() {
         return searchText.includes(q);
       });
     }
-    if (activeFilter === 'All') return list.filter((p) => p.status !== 'Archived');
-    if (activeFilter === 'Ideas') return list.filter((p) => p.status === 'Incubating' || p.status === 'Waiting');
-    if (activeFilter === 'Archived') return list.filter((p) => p.status === 'Archived');
-    return list.filter((p) => p.status === activeFilter);
-  }, [projects, activeFilter, deferredSearch]);
+    if (activeFilter === 'All') list = list.filter((p) => p.status !== 'Archived');
+    else if (activeFilter === 'Ideas') list = list.filter((p) => p.status === 'Incubating' || p.status === 'Waiting');
+    else if (activeFilter === 'Archived') list = list.filter((p) => p.status === 'Archived');
+    else list = list.filter((p) => p.status === activeFilter);
+
+    if (projectSortBy === 'unsorted') return list;
+    return [...list].sort((a, b) => {
+      switch (projectSortBy) {
+        case 'changed':
+          return new Date(b.lastWorked || 0) - new Date(a.lastWorked || 0);
+        case 'created':
+          return (b.id || 0) - (a.id || 0);
+        case 'alpha':
+          return (a.title || '').localeCompare(b.title || '');
+        case 'alpha-desc':
+          return (b.title || '').localeCompare(a.title || '');
+        case 'deadline': {
+          const da = a.deadline || '';
+          const db = b.deadline || '';
+          if (da === 'Ongoing') return 1;
+          if (db === 'Ongoing') return -1;
+          if (da === 'Completed') return 1;
+          if (db === 'Completed') return -1;
+          return da.localeCompare(db);
+        }
+        default:
+          return 0;
+      }
+    });
+  }, [projects, activeFilter, deferredSearch, projectSortBy]);
 
   const projectCounts = useMemo(() => {
     const counts = { total: projects.filter((p) => p.status !== 'Archived').length };
@@ -493,6 +518,8 @@ function DashboardContent() {
                   onToggleSidebar={handleToggleSidebar}
                   activeTodosCount={aggregatedTodos.length}
                   onCleanupArchive={handleCleanupArchive}
+                  projectSortBy={projectSortBy}
+                  onProjectSortChange={setProjectSortBy}
                 />
 
                 {!ready ? (

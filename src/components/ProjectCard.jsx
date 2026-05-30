@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import PropTypes from 'prop-types';
 import { STATUSES, STATUS_STYLES, STATUS_COLORS, Z_INDEX } from '@/lib/constants';
 import { formatDeadlineForDisplay, formatLastWorked } from '@/lib/dateUtils';
+import { ProgressBar } from '@/components/ui';
 
 function StatusBadge({ status }) {
   const style = STATUS_STYLES[status] || STATUS_STYLES.Active;
@@ -257,8 +258,8 @@ function ProjectCard({ project, onClick, onUpdateProject, onDeleteProject, onDel
           </h3>
 
           <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-auto line-clamp-2">
-            <span className="text-[var(--text-muted)]">Next:</span>{' '}
-            {project.nextStep}
+            <span className="text-[var(--text-muted)]">Focus:</span>{' '}
+            {project.currentFocus}
           </p>
 
           <div className="mt-4 space-y-2.5">
@@ -266,24 +267,7 @@ function ProjectCard({ project, onClick, onUpdateProject, onDeleteProject, onDel
               <span className="text-[var(--text-muted)] uppercase tracking-wider font-medium">Progress</span>
               <span className="font-semibold text-[var(--text-secondary)] tabular-nums">{project.progress}%</span>
             </div>
-            <div
-              className="h-1.5 bg-[var(--border-subtle)] rounded-full overflow-hidden"
-              role="progressbar"
-              aria-valuenow={project.progress}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-label={`Project progress: ${project.progress}%`}
-            >
-              <motion.div
-                initial={false}
-                animate={{ width: `${project.progress}%` }}
-                transition={{ duration: 0.8, ease: [0.25, 0.1, 0.25, 1] }}
-                className="h-full rounded-full"
-                style={{
-                  background: 'linear-gradient(90deg, var(--accent-clay), var(--accent-clay-light))',
-                }}
-              />
-            </div>
+            <ProgressBar value={project.progress} label={`Project progress: ${project.progress}%`} />
           </div>
 
           <div className="mt-4 pt-3.5 border-t border-[var(--border-subtle)] flex items-center justify-between text-xs">
@@ -329,7 +313,7 @@ export default memo(ProjectCard, (prevProps, nextProps) => {
     prevProps.project.status === nextProps.project.status &&
     prevProps.project.lastWorked === nextProps.project.lastWorked &&
     prevProps.project.title === nextProps.project.title &&
-    prevProps.project.nextStep === nextProps.project.nextStep &&
+    prevProps.project.currentFocus === nextProps.project.currentFocus &&
     prevProps.project.todoCount === nextProps.project.todoCount &&
     prevProps.project.deadline === nextProps.project.deadline
   );

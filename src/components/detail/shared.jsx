@@ -5,6 +5,7 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { createTodo } from '@/lib/storage';
 import { PRIORITY_STYLES, Z_INDEX } from '@/lib/constants';
 import { formatRelativeTime, formatDeadlineForDisplay } from '@/lib/dateUtils';
+import { Input, Textarea, Select, Button } from '@/components/ui';
 
 export function groupTimelineByDate(entries) {
   const groups = {};
@@ -230,35 +231,42 @@ export function AddTodoBar({ onAdd }) {
   const [text, setText] = useState('');
   const [priority, setPriority] = useState('Medium');
   const [details, setDetails] = useState('');
+  const [deadline, setDeadline] = useState('');
   const [showDetails, setShowDetails] = useState(false);
+  const [emptyError, setEmptyError] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!text.trim()) return;
-    onAdd(text.trim(), priority, details.trim());
+    if (!text.trim()) {
+      setEmptyError(true);
+      setTimeout(() => setEmptyError(false), 600);
+      return;
+    }
+    onAdd(text.trim(), priority, details.trim(), deadline);
     setText('');
     setDetails('');
+    setDeadline('');
     setShowDetails(false);
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-2">
       <div className="flex items-center gap-2">
-        <select
+        <Select
           value={priority}
           onChange={(e) => setPriority(e.target.value)}
-          className="px-2 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] text-xs font-medium text-[var(--text-secondary)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 appearance-none shrink-0"
+          className="px-2 py-2 text-xs font-medium text-[var(--text-secondary)] shrink-0 w-auto"
         >
           <option value="High">High</option>
           <option value="Medium">Med</option>
           <option value="Low">Low</option>
-        </select>
+        </Select>
         <input
           type="text"
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Add a todo..."
-          className="flex-1 px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all"
+          className={`flex-1 px-3 py-2 rounded-lg border bg-[var(--bg-card)] text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all ${emptyError ? 'border-red-400 animate-shake' : 'border-[var(--border-subtle)]'}`}
         />
         <button
           type="button"
@@ -270,22 +278,26 @@ export function AddTodoBar({ onAdd }) {
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        <button
-          type="submit"
-          className="px-3 py-2 rounded-lg text-xs font-semibold text-white transition-all shrink-0"
-          style={{ background: 'linear-gradient(135deg, var(--accent-clay), #B8603A)' }}
-        >
+        <Button type="submit" variant="gradient" className="px-3 shrink-0">
           Add
-        </button>
+        </Button>
       </div>
       {showDetails && (
-        <textarea
-          value={details}
-          onChange={(e) => setDetails(e.target.value)}
-          placeholder="Add optional details..."
-          rows={2}
-          className="w-full px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all resize-none"
-        />
+        <div className="space-y-2">
+          <Textarea
+            value={details}
+            onChange={(e) => setDetails(e.target.value)}
+            placeholder="Add optional details..."
+            rows={2}
+          />
+          <Input
+            type="date"
+            value={deadline}
+            onChange={(e) => setDeadline(e.target.value)}
+            className="text-xs text-[var(--text-secondary)]"
+            aria-label="Todo deadline"
+          />
+        </div>
       )}
     </form>
   );
@@ -398,59 +410,31 @@ export function EditTodoModal({ todo, isOpen, onClose, onSave }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">Todo</label>
-            <input
-              type="text"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all"
-              autoFocus
-            />
+            <Input type="text" value={text} onChange={(e) => setText(e.target.value)} autoFocus />
           </div>
           <div>
             <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">Priority</label>
-            <select
-              value={priority}
-              onChange={(e) => setPriority(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 appearance-none"
-            >
+            <Select value={priority} onChange={(e) => setPriority(e.target.value)} className="w-full">
               <option value="High">High</option>
               <option value="Medium">Medium</option>
               <option value="Low">Low</option>
-            </select>
+            </Select>
           </div>
           <div>
             <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">Details (optional)</label>
-            <textarea
-              value={details}
-              onChange={(e) => setDetails(e.target.value)}
-              rows={3}
-              className="w-full px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all resize-none"
-            />
+            <Textarea value={details} onChange={(e) => setDetails(e.target.value)} rows={3} />
           </div>
           <div>
             <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">Deadline (optional)</label>
-            <input
-              type="date"
-              value={deadline}
-              onChange={(e) => setDeadline(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all"
-            />
+            <Input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
           </div>
           <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 rounded-lg border border-[var(--border-subtle)] text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--border-subtle)] transition-colors"
-            >
+            <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
               Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 px-4 py-2 rounded-lg text-xs font-semibold text-white transition-all"
-              style={{ background: 'linear-gradient(135deg, var(--accent-clay), #B8603A)' }}
-            >
+            </Button>
+            <Button type="submit" variant="gradient" className="flex-1">
               Save Changes
-            </button>
+            </Button>
           </div>
         </form>
       </motion.div>
