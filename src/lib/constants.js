@@ -44,6 +44,17 @@ export const STATUS_BG = {
   Archived: 'bg-[#A39A94]/10 text-[#A39A94] border-[#A39A94]/20',
 };
 
+// Project sort options
+export const PROJECT_SORT_OPTIONS = [
+  { value: 'changed', label: 'Recently Changed' },
+  { value: 'created', label: 'Recently Created' },
+  { value: 'alpha', label: 'Alphabetical A-Z' },
+  { value: 'alpha-desc', label: 'Alphabetical Z-A' },
+  { value: 'deadline', label: 'Deadline' },
+  { value: 'unsorted', label: 'Unsorted' },
+];
+export const DEFAULT_PROJECT_SORT = 'changed';
+
 // Priority styles
 export const PRIORITY_STYLES = {
   High: 'text-[var(--accent-clay)] bg-[var(--accent-clay)]/8',

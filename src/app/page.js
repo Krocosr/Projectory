@@ -2,6 +2,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef, useDeferredValue, Suspense, lazy } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import DashboardHeader from '@/components/DashboardHeader';
 import NewProjectModal from '@/components/NewProjectModal';
 import ToastContainer, { useToast } from '@/components/Toast';
@@ -9,6 +10,10 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import ProjectCard from '@/components/ProjectCard';
 import { seedProjects, SEED_KEY, createProject } from '@/app/data';
 import { loadProjects, saveProjects, recoverFromApi, exportToFile, importFromFile, recalculateProject } from '@/lib/storage';
+import { getActiveTodos } from '@/lib/todoAggregator';
+import ActiveTodosSidebar from '@/components/ActiveTodosSidebar';
+import { DEFAULT_PROJECT_SORT } from '@/lib/constants';
+import { Button } from '@/components/ui';
 
 // Lazy load only the heavy ProjectDetailView component
 // ProjectCard is small (~210 lines) and used frequently, so keep it eager for better UX
@@ -70,13 +75,9 @@ function EmptyPortfolio({ onNewProject }) {
       <p className="text-sm text-[var(--text-secondary)] mb-6 max-w-sm mx-auto">
         Create your first project to start tracking your work.
       </p>
-      <button
-        onClick={onNewProject}
-        className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
-        style={{ background: 'linear-gradient(135deg, var(--accent-clay), #B8603A)' }}
-      >
+      <Button onClick={onNewProject} variant="gradient" className="px-5 py-2.5 rounded-xl text-sm">
         Create your first project
-      </button>
+      </Button>
     </div>
   );
 }
@@ -105,7 +106,8 @@ function DashboardContent() {
   const { toasts, addToast, dismissToast } = useToast();
   const lastFocusedCardIdRef = useRef(null);
   const pendingNavigateHomeRef = useRef(false);
-  const DARK_MODE_KEY = 'deadliner_dark_mode';
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const DARK_MODE_KEY = 'projectory_dark_mode';
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   // Initialize dark mode from localStorage + system preference
@@ -217,6 +219,8 @@ function DashboardContent() {
     }
   }, [projectParam, ready, projects, router]);
 
+  const [projectSortBy, setProjectSortBy] = useState(DEFAULT_PROJECT_SORT);
+
   const filteredProjects = useMemo(() => {
     let list = projects;
     if (deferredSearch.trim()) {
@@ -231,20 +235,48 @@ function DashboardContent() {
         return searchText.includes(q);
       });
     }
-    if (activeFilter === 'All') return list;
-    if (activeFilter === 'Ideas') return list.filter((p) => p.status === 'Incubating' || p.status === 'Waiting');
-    if (activeFilter === 'Archived') return list.filter((p) => p.status === 'Archived');
-    return list.filter((p) => p.status === activeFilter);
-  }, [projects, activeFilter, deferredSearch]);
+    if (activeFilter === 'All') list = list.filter((p) => p.status !== 'Archived');
+    else if (activeFilter === 'Ideas') list = list.filter((p) => p.status === 'Incubating' || p.status === 'Waiting');
+    else if (activeFilter === 'Archived') list = list.filter((p) => p.status === 'Archived');
+    else list = list.filter((p) => p.status === activeFilter);
+
+    if (projectSortBy === 'unsorted') return list;
+    return [...list].sort((a, b) => {
+      switch (projectSortBy) {
+        case 'changed':
+          return new Date(b.lastWorked || 0) - new Date(a.lastWorked || 0);
+        case 'created':
+          return (b.id || 0) - (a.id || 0);
+        case 'alpha':
+          return (a.title || '').localeCompare(b.title || '');
+        case 'alpha-desc':
+          return (b.title || '').localeCompare(a.title || '');
+        case 'deadline': {
+          const da = a.deadline || '';
+          const db = b.deadline || '';
+          if (da === 'Ongoing') return 1;
+          if (db === 'Ongoing') return -1;
+          if (da === 'Completed') return 1;
+          if (db === 'Completed') return -1;
+          return da.localeCompare(db);
+        }
+        default:
+          return 0;
+      }
+    });
+  }, [projects, activeFilter, deferredSearch, projectSortBy]);
 
   const projectCounts = useMemo(() => {
-    const counts = { total: projects.length };
+    const counts = { total: projects.filter((p) => p.status !== 'Archived').length };
     projects.forEach((p) => {
       counts[p.status] = (counts[p.status] || 0) + 1;
     });
     counts.statusCount = new Set(projects.map((p) => p.status)).size;
     return counts;
   }, [projects]);
+
+  const [todoSortBy, setTodoSortBy] = useState('priority');
+  const aggregatedTodos = useMemo(() => getActiveTodos(projects, todoSortBy), [projects, todoSortBy]);
 
   const handleNewProject = useCallback((form) => {
     const created = createProject(form);
@@ -284,6 +316,29 @@ function DashboardContent() {
     pendingNavigateHomeRef.current = true;
     setSelectedProject(null);
     setProjects((current) => {
+      const updated = current.map((p) => {
+        if (p.id !== id) return p;
+        return {
+          ...p,
+          status: 'Archived',
+          archivedAt: new Date().toISOString(),
+          timeline: [...(p.timeline || []), { date: new Date().toISOString(), action: 'Project archived' }],
+        };
+      });
+      const result = saveProjects(updated);
+      if (!result.success) {
+        addToast(result.error || 'Failed to save changes', 'error');
+      }
+      return updated;
+    });
+    router.push('/', { scroll: false });
+    addToast('Project archived');
+  }, [router, addToast, setSelectedProject]);
+
+  const handleDeletePermanent = useCallback((id) => {
+    pendingNavigateHomeRef.current = true;
+    setSelectedProject(null);
+    setProjects((current) => {
       const updated = current.filter((p) => p.id !== id);
       const result = saveProjects(updated);
       if (!result.success) {
@@ -292,8 +347,27 @@ function DashboardContent() {
       return updated;
     });
     router.push('/', { scroll: false });
-    addToast('Project deleted', 'error');
+    addToast('Project deleted permanently');
   }, [router, addToast, setSelectedProject]);
+
+  const handleCleanupArchive = useCallback(() => {
+    const archivedCount = projects.filter((p) => p.status === 'Archived').length;
+    if (archivedCount === 0) {
+      addToast('No archived projects to clean up', 'info');
+      return;
+    }
+    if (window.confirm(`Permanently delete all ${archivedCount} archived projects? This cannot be undone.`)) {
+      setProjects((current) => {
+        const updated = current.filter((p) => p.status !== 'Archived');
+        const result = saveProjects(updated);
+        if (!result.success) {
+          addToast(result.error || 'Failed to save changes', 'error');
+        }
+        return updated;
+      });
+      addToast(`Deleted ${archivedCount} archived projects`);
+    }
+  }, [projects, addToast]);
 
   const handleBack = useCallback(() => {
     pendingNavigateHomeRef.current = true;
@@ -344,6 +418,33 @@ function DashboardContent() {
     addToast(`Merged ${imported.filter((p) => !projects.some((c) => c.id === p.id)).length} new projects`, 'info');
   }, [addToast, projects]);
 
+  const handleToggleSidebar = useCallback(() => {
+    setIsSidebarOpen((prev) => !prev);
+  }, []);
+
+  const handleToggleTodoFromSidebar = useCallback((projectId, todoId) => {
+    setProjects((current) => {
+      const updated = current.map((p) => {
+        if (p.id !== projectId) return p;
+        const newTodos = (p.todos || []).map((t) =>
+          t.id === todoId ? { ...t, done: !t.done } : t
+        );
+        return recalculateProject({ ...p, todos: newTodos });
+      });
+      const result = saveProjects(updated);
+      if (!result.success) {
+        addToast(result.error || 'Failed to save changes', 'error');
+      }
+      return updated;
+    });
+  }, [addToast]);
+
+  const handleSidebarNavigate = useCallback((projectId) => {
+    setIsSidebarOpen(false);
+    const project = projects.find((p) => p.id === projectId);
+    if (project) handleCardClick(project);
+  }, [projects, handleCardClick]);
+
   const handleToggleDarkMode = useCallback(() => {
     setIsDarkMode((prev) => {
       const next = !prev;
@@ -353,92 +454,156 @@ function DashboardContent() {
     });
   }, []);
 
+  const handleProjectDragEnd = useCallback((result) => {
+    if (!result.destination) return;
+    if (result.source.index === result.destination.index) return;
+
+    setProjects((current) => {
+      const reordered = [...current];
+      const [removed] = reordered.splice(result.source.index, 1);
+      reordered.splice(result.destination.index, 0, removed);
+      const saveResult = saveProjects(reordered);
+      if (!saveResult.success) {
+        addToast(saveResult.error || 'Failed to save reorder', 'error');
+      }
+      return reordered;
+    });
+  }, [addToast]);
+
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen flex overflow-hidden">
       <NewProjectButton onClick={() => setIsNewModalOpen(true)} />
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
-      <div className="max-w-6xl mx-auto px-6 py-10">
-        {selectedProject ? (
-          <motion.div
-            key={`detail-${selectedProject.id}`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.15 }}
-          >
-            <ErrorBoundary 
-              context="ProjectDetailView"
-              errorMessage="Failed to load project details. Try going back to the dashboard."
-              onReset={handleBack}
+      <div className="flex-1 min-w-0 transition-all duration-300 overflow-y-auto" style={{ marginRight: isSidebarOpen ? '380px' : '0' }}>
+        <div className="max-w-6xl mx-auto px-6 py-10">
+          {selectedProject ? (
+            <motion.div
+              key={`detail-${selectedProject.id}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.15 }}
             >
-              <Suspense fallback={<div className="min-h-[60vh] flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-[var(--accent-clay)] border-t-transparent animate-spin" /></div>}>
-                <ProjectDetailView
-                  project={selectedProject}
-                  onBack={handleBack}
-                  onUpdateProject={handleUpdateProject}
-                  onDeleteProject={handleDeleteProject}
-                  onNotify={addToast}
+              <ErrorBoundary 
+                context="ProjectDetailView"
+                errorMessage="Failed to load project details. Try going back to the dashboard."
+                onReset={handleBack}
+              >
+                <Suspense fallback={<div className="min-h-[60vh] flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-[var(--accent-clay)] border-t-transparent animate-spin" /></div>}>
+                  <ProjectDetailView
+                    project={selectedProject}
+                    onBack={handleBack}
+                    onUpdateProject={handleUpdateProject}
+                    onDeleteProject={handleDeleteProject}
+                    onNotify={addToast}
+                    isDarkMode={isDarkMode}
+                    onToggleDarkMode={handleToggleDarkMode}
+                    onToggleSidebar={handleToggleSidebar}
+                    activeTodosCount={aggregatedTodos.length}
+                  />
+                </Suspense>
+              </ErrorBoundary>
+            </motion.div>
+          ) : (<>
+                <DashboardHeader
+                  activeFilter={activeFilter}
+                  onFilterChange={setActiveFilter}
+                  projectCounts={projectCounts}
+                  searchQuery={searchQuery}
+                  onSearchChange={setSearchQuery}
+                  onExport={handleExport}
+                  onImport={handleImport}
                   isDarkMode={isDarkMode}
                   onToggleDarkMode={handleToggleDarkMode}
+                  onToggleSidebar={handleToggleSidebar}
+                  activeTodosCount={aggregatedTodos.length}
+                  onCleanupArchive={handleCleanupArchive}
+                  projectSortBy={projectSortBy}
+                  onProjectSortChange={setProjectSortBy}
                 />
-              </Suspense>
-            </ErrorBoundary>
-          </motion.div>
-        ) : (<>
-              <DashboardHeader
-                activeFilter={activeFilter}
-                onFilterChange={setActiveFilter}
-                projectCounts={projectCounts}
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
-                onExport={handleExport}
-                onImport={handleImport}
-                isDarkMode={isDarkMode}
-                onToggleDarkMode={handleToggleDarkMode}
-              />
 
-              {!ready ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 auto-rows-fr">
-                  {[...Array(4)].map((_, i) => <CardSkeleton key={i} />)}
-                </div>
-              ) : filteredProjects.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 auto-rows-fr">
-                  {filteredProjects.map((project) => (
-                    <ErrorBoundary 
-                      key={project.id}
-                      context={`ProjectCard-${project.id}`}
-                      errorMessage="Failed to load this project card."
+                {!ready ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 auto-rows-fr">
+                    {[...Array(4)].map((_, i) => <CardSkeleton key={i} />)}
+                  </div>
+                ) : filteredProjects.length > 0 ? (
+                  <DragDropContext onDragEnd={handleProjectDragEnd}>
+                    <Droppable droppableId="projects">
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 auto-rows-fr transition-colors ${
+                            snapshot.isDraggingOver ? 'bg-[var(--accent-clay)]/5 rounded-2xl p-2' : ''
+                          }`}
+                        >
+                          {filteredProjects.map((project, index) => (
+                            <Draggable
+                              key={String(project.id)}
+                              draggableId={String(project.id)}
+                              index={index}
+                            >
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  style={provided.draggableProps.style}
+                                  className={`transition-shadow ${
+                                    snapshot.isDragging ? 'shadow-2xl ring-2 ring-[var(--accent-clay)]/40 rounded-2xl scale-105' : ''
+                                  }`}
+                                >
+                                  <ErrorBoundary 
+                                    key={project.id}
+                                    context={`ProjectCard-${project.id}`}
+                                    errorMessage="Failed to load this project card."
+                                  >
+                                    <ProjectCard
+                                      project={project}
+                                      onClick={handleCardClick}
+                                      onUpdateProject={handleUpdateProject}
+                                      onDeleteProject={handleDeleteProject}
+                                      onDeletePermanent={handleDeletePermanent}
+                                    />
+                                  </ErrorBoundary>
+                                </div>
+                              )}
+                            </Draggable>
+                          ))}
+                          {provided.placeholder}
+                          {activeFilter === 'All' && !searchQuery && (
+                            <NewProjectCard onClick={() => setIsNewModalOpen(true)} />
+                          )}
+                        </div>
+                      )}
+                    </Droppable>
+                  </DragDropContext>
+                ) : projects.length === 0 ? (
+                  <EmptyPortfolio onNewProject={() => setIsNewModalOpen(true)} />
+                ) : (
+                  <div className="text-center py-20">
+                    <p className="text-sm text-[var(--text-muted)]">
+                      {searchQuery ? 'No projects match your search' : `No ${activeFilter.toLowerCase()} projects`}
+                    </p>
+                    <button
+                      onClick={() => { setActiveFilter('All'); setSearchQuery(''); }}
+                      className="mt-2 text-sm text-[var(--accent-clay)] hover:text-[var(--text-primary)] transition-colors"
                     >
-                      <ProjectCard
-                        project={project}
-                        onClick={handleCardClick}
-                        onUpdateProject={handleUpdateProject}
-                        onDeleteProject={handleDeleteProject}
-                      />
-                    </ErrorBoundary>
-                  ))}
-                  {activeFilter === 'All' && !searchQuery && (
-                    <NewProjectCard onClick={() => setIsNewModalOpen(true)} />
-                  )}
-                </div>
-              ) : projects.length === 0 ? (
-                <EmptyPortfolio onNewProject={() => setIsNewModalOpen(true)} />
-              ) : (
-                <div className="text-center py-20">
-                  <p className="text-sm text-[var(--text-muted)]">
-                    {searchQuery ? 'No projects match your search' : `No ${activeFilter.toLowerCase()} projects`}
-                  </p>
-                  <button
-                    onClick={() => { setActiveFilter('All'); setSearchQuery(''); }}
-                    className="mt-2 text-sm text-[var(--accent-clay)] hover:text-[var(--text-primary)] transition-colors"
-                  >
-                    Show all projects
-                  </button>
-                </div>
-              )}
-            </>
-          )}
+                      Show all projects
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+        </div>
       </div>
+
+      <ActiveTodosSidebar
+        isOpen={isSidebarOpen}
+        todos={aggregatedTodos}
+        onToggleTodo={handleToggleTodoFromSidebar}
+        onNavigateToProject={handleSidebarNavigate}
+      />
 
       <NewProjectModal
         isOpen={isNewModalOpen}

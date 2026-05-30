@@ -1,4 +1,4 @@
-# Deadliner — AGENTS.md
+# Projectory — AGENTS.md
 
 Next.js 14 App Router client-first SPA with API layer for OpenCode tooling. `'use client'` on every page/component — no RSC.
 
@@ -12,7 +12,7 @@ Next.js 14 App Router client-first SPA with API layer for OpenCode tooling. `'us
 ## Architecture
 
 - **State**: Single `page.js` owns all state (`useState` + `useCallback`), passes handlers as props
-- **Persistence**: `localStorage` key `deadliner_projects`, seed flag `deadliner_seeded_v2`
+- **Persistence**: `localStorage` key `projectory_projects`, seed flag `projectory_seeded_v2`
 - **Routing**: `useSearchParams` with `?project=` query param. Requires `<Suspense>` boundary around `DashboardContent`
 - **ID scheme**: `Date.now()` for projects, `Date.now() + Math.random()` for todos
 - **Seed data**: Hardcoded IDs 1-8 in `src/app/data.js` — no conflict risk with user IDs
@@ -29,7 +29,7 @@ Next.js 14 App Router client-first SPA with API layer for OpenCode tooling. `'us
 | `src/lib/migrations.js` | Versioned localStorage migration system (`runMigrations`, `needsMigration`) |
 | `src/lib/fileStorage.js` | API-side file I/O for `data/projects.json` (used by API routes) |
 | `src/app/api/projects/` | REST API endpoints for OpenCode tooling access |
-| `scripts/deadliner-cli.mjs` | CLI tool to manage projects via the API |
+| `scripts/projectory-cli.mjs` | CLI tool to manage projects via the API |
 | `src/components/` | 4 components: `DashboardHeader`, `NewProjectModal`, `ProjectCard`, `ProjectDetailView` |
 
 ## Gotchas
@@ -70,31 +70,31 @@ Next.js 14 App Router client-first SPA with API layer for OpenCode tooling. `'us
 - **Storage**: File-based at `data/projects.json` (Next.js server-side only)
 - **Client sync**: `saveProjects()` automatically syncs to API via `PUT /api/projects` (best-effort, silent failure)
 - **Live sync**: `page.js` polls `GET /api/projects/poll` every 3s. When mtime differs, it re-fetches projects from API and updates localStorage + state. Changes from write tools appear live without page refresh.
-- **CLI**: `node scripts/deadliner-cli.mjs list` — set `DEADLINER_API` env var for custom port
+- **CLI**: `node scripts/projectory-cli.mjs list` — set `PROJECTORY_API` env var for custom port
 
 ## OpenCode Tools
 
-Tools are defined in `.opencode/tools/deadliner.ts`. Available tools:
+Tools are defined in `.opencode/tools/projectory.ts`. Available tools:
 
 | Tool | Description |
 |------|-------------|
-| `deadliner_read_projects` | List all projects |
-| `deadliner_read_project` | Get full project detail by ID |
-| `deadliner_read_todos` | Get todos for a project (filtered) |
-| `deadliner_toggle_todo` | Toggle a todo's done/undone status |
-| `deadliner_update_todo` | Update a todo's text/priority/details |
-| `deadliner_add_todo` | Add a new todo to a project |
-| `deadliner_remove_todo` | Remove a todo from a project |
-| `deadliner_update_project` | Update project fields (notes, status, deadline, title, etc.) |
+| `projectory_read_projects` | List all projects |
+| `projectory_read_project` | Get full project detail by ID |
+| `projectory_read_todos` | Get todos for a project (filtered) |
+| `projectory_toggle_todo` | Toggle a todo's done/undone status |
+| `projectory_update_todo` | Update a todo's text/priority/details |
+| `projectory_add_todo` | Add a new todo to a project |
+| `projectory_remove_todo` | Remove a todo from a project |
+| `projectory_update_project` | Update project fields (notes, status, deadline, title, etc.) |
 
-- **Import** from `.opencode/tools/deadliner.ts` in the `apiFetch` helper
+- **Import** from `.opencode/tools/projectory.ts` in the `apiFetch` helper
 - **Server must be running** (`npm run dev`) for API-based tools
 - **Write tools** modify `data/projects.json` via the API — the browser detects the change via polling (3s interval) and updates live
 
 ## Versioning
 
 - **Scheme**: `MAJOR.MINOR.PATCH` (semver)
-- **Current**: `0.4.0` — Write tools (toggle/update/add/remove todo, update project) + live-sync polling
+- **Current**: `0.8.0` — UI primitives system (Input/Textarea/Select/Button/ProgressBar/SectionHeader), useRateLimit hook, theme toggle animation, scrollbars, sort dropdown, todo deadlines, empty input feedback, notes blend styling, currentFocus display
 - **Location**: `version` field in `package.json`
 - **Process**: Bump before commit after build verification. `npm run build` must pass.
 - **Commit pattern**: `v<version> — <short summary>` (e.g. `v0.1.1 — perf fixes, API routing, Settings cleanup`)

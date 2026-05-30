@@ -4,6 +4,7 @@ import PropTypes from 'prop-types';
 import { DetailRow } from './shared';
 import { STATUSES, STATUS_COLORS, STATUS_BG } from '@/lib/constants';
 import { formatDeadlineForDisplay, toDateInputValue } from '@/lib/dateUtils';
+import { Input, Textarea, Select, Button } from '@/components/ui';
 
 export default function SettingsTab({ project, onUpdateProject, onNotify, onUnsavedChanges }) {
   const [editing, setEditing] = useState(false);
@@ -89,13 +90,9 @@ export default function SettingsTab({ project, onUpdateProject, onNotify, onUnsa
             )}
           </div>
         ))}
-        <button
-          onClick={() => setEditing(true)}
-          className="px-4 py-2 rounded-lg text-xs font-semibold text-white transition-all"
-          style={{ background: 'linear-gradient(135deg, var(--accent-clay), #B8603A)' }}
-        >
+        <Button onClick={() => setEditing(true)} variant="gradient">
           Edit Project
-        </button>
+        </Button>
       </div>
     );
   }
@@ -104,56 +101,40 @@ export default function SettingsTab({ project, onUpdateProject, onNotify, onUnsa
     <div className="space-y-4">
       <div className="py-2">
         <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">Project Name</label>
-        <input
-          type="text"
-          value={form.title || ''}
-          onChange={(e) => setForm({ ...form, title: e.target.value })}
-          className="w-full px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all"
-        />
+        <Input type="text" value={form.title || ''} onChange={(e) => setForm({ ...form, title: e.target.value })} />
       </div>
 
       <div className="py-2">
         <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">Status</label>
-        <select
+        <Select
           value={form.status}
           onChange={(e) => setForm({ ...form, status: e.target.value })}
-          className="w-full px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 appearance-none"
+          className="w-full"
           style={{ color: STATUS_COLORS[form.status] || 'inherit' }}
         >
           {STATUSES.map((s) => (
             <option key={s} value={s} style={{ color: STATUS_COLORS[s] }}>{s}</option>
           ))}
-        </select>
+        </Select>
       </div>
 
       <div className="py-2">
         <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">Goal</label>
-        <input
-          type="text"
-          value={form.goal || ''}
-          onChange={(e) => setForm({ ...form, goal: e.target.value })}
-          className="w-full px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all"
-        />
+        <Input type="text" value={form.goal || ''} onChange={(e) => setForm({ ...form, goal: e.target.value })} />
       </div>
 
       <div className="py-2">
         <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">Deadline</label>
-        <input
+        <Input
           type="date"
           value={toDateInputValue(form.deadline) || ''}
           onChange={(e) => setForm({ ...form, deadline: e.target.value })}
-          className="w-full px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all"
         />
       </div>
 
       <div className="py-2">
         <label className="block text-xs font-medium text-[var(--text-muted)] mb-1">Description</label>
-        <textarea
-          value={form.description || ''}
-          onChange={(e) => setForm({ ...form, description: e.target.value })}
-          rows={3}
-          className="w-full px-3 py-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all resize-none"
-        />
+        <Textarea value={form.description || ''} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} />
       </div>
 
       {hasUnsavedChanges && (
@@ -163,20 +144,12 @@ export default function SettingsTab({ project, onUpdateProject, onNotify, onUnsa
       )}
 
       <div className="flex gap-3 pt-2">
-        <button
-          type="button"
-          onClick={handleCancel}
-          className="flex-1 px-4 py-2 rounded-lg border border-[var(--border-subtle)] text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--border-subtle)] transition-colors"
-        >
+        <Button type="button" variant="secondary" onClick={handleCancel} className="flex-1">
           Cancel
-        </button>
-        <button
-          onClick={handleSave}
-          className="flex-1 px-4 py-2 rounded-lg text-xs font-semibold text-white transition-all"
-          style={{ background: 'linear-gradient(135deg, var(--accent-clay), #B8603A)' }}
-        >
+        </Button>
+        <Button onClick={handleSave} variant="gradient" className="flex-1">
           Save Changes
-        </button>
+        </Button>
       </div>
     </div>
   );

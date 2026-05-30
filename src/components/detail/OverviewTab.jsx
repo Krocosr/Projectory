@@ -1,9 +1,9 @@
 'use client';
 import { useMemo } from 'react';
-import { motion } from 'framer-motion';
 import PropTypes from 'prop-types';
 import { DetailRow, DraggableTodoList, AddTodoBar, computeProgress, computeNextStepText, getFirstActiveTodo } from './shared';
 import { formatDeadlineForDisplay } from '@/lib/dateUtils';
+import { ProgressBar } from '@/components/ui';
 
 export default function OverviewTab({ project, onAddTodo, onToggleTodo, onRemoveTodo, onEditTodo, onReorderTodos }) {
   const { activeTodos, recentTodos, progress, currentFocusText, nextStepText } = useMemo(() => {
@@ -40,23 +40,7 @@ export default function OverviewTab({ project, onAddTodo, onToggleTodo, onRemove
             {progress}%
           </span>
         </div>
-        <div
-          className="h-2 bg-[var(--border-subtle)] rounded-full overflow-hidden"
-          role="progressbar"
-          aria-valuenow={progress}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label={`Project progress: ${progress}%`}
-        >
-          <motion.div
-            animate={{ width: `${progress}%` }}
-            transition={{ duration: 1, ease: [0.25, 0.1, 0.25, 1] }}
-            className="h-full rounded-full"
-            style={{
-              background: 'linear-gradient(90deg, var(--accent-clay), var(--accent-clay-light))',
-            }}
-          />
-        </div>
+        <ProgressBar value={progress} label={`Project progress: ${progress}%`} height="h-2" />
       </div>
 
       <div className="pt-4">

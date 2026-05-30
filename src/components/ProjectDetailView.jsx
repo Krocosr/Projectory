@@ -6,12 +6,15 @@ import { computeProgress, computeNextStepText, getFirstActiveTodo } from '@/comp
 import PropTypes from 'prop-types';
 import { STATUS_COLORS } from '@/lib/constants';
 import { formatLastWorked } from '@/lib/dateUtils';
-import { OverviewTab, TodosTab, WorkspaceTab, TimelineTab, SettingsTab, EditTodoModal } from '@/components/detail';
+import { useRateLimit } from '@/hooks/useRateLimit';
+import { ProgressBar } from '@/components/ui';
+import { OverviewTab, TodosTab, WorkspaceTab, TimelineTab, SettingsTab, EditTodoModal, ScratchpadTab } from '@/components/detail';
 
 
-const TABS = ['Overview', 'Todos', 'Workspace', 'Timeline', 'Settings'];
+const TABS = ['Overview', 'Todos', 'Workspace', 'Scratchpad', 'Timeline', 'Settings'];
 
-export default function ProjectDetailView({ project, onBack, onUpdateProject, onDeleteProject, onNotify, isDarkMode, onToggleDarkMode }) {
+export default function ProjectDetailView({ project, onBack, onUpdateProject, onDeleteProject, onNotify, isDarkMode, onToggleDarkMode, onToggleSidebar, activeTodosCount }) {
+  const isToggleAllowed = useRateLimit(300);
   const [activeTab, setActiveTab] = useState('Overview');
   const [editingTodo, setEditingTodo] = useState(null);
   const [settingsHasUnsavedChanges, setSettingsHasUnsavedChanges] = useState(false);
@@ -34,19 +37,22 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
     }
   }, [activeTab, settingsHasUnsavedChanges]);
 
-  const handleAddTodo = useCallback((text, priority, details) => {
+  const handleAddTodo = useCallback((text, priority, details, deadline) => {
     const p = projectRef.current;
     const onUpdate = onUpdateProjectRef.current;
     const onNotify = onNotifyRef.current;
-    const todo = createTodo(text, priority, details);
+    const todo = createTodo(text, priority, details, deadline);
     const newTodos = [...(p.todos || []), todo];
     
-    const updated = recalculateProject({
-      ...p,
-      todos: newTodos,
-      lastWorked: new Date().toISOString(),
-      timeline: [...(p.timeline || []), { date: new Date().toISOString(), action: `Added todo: ${text}` }],
-    });
+    const updated = {
+      ...recalculateProject({
+        ...p,
+        todos: newTodos,
+        lastWorked: new Date().toISOString(),
+        timeline: [...(p.timeline || []), { date: new Date().toISOString(), action: `Added todo: ${text}` }],
+      }),
+      nextStep: text,
+    };
     onUpdate(updated);
     onNotify?.('Todo added');
   }, []);
@@ -124,12 +130,16 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
   const handleDeleteProject = useCallback(() => {
     const p = projectRef.current;
     const onDelete = onDeleteProject;
-    const onNotify = onNotifyRef.current;
-    if (window.confirm(`Delete "${p.title}"? This cannot be undone.`)) {
+    if (window.confirm(`Archive "${p.title}"? It will be moved to Archived status.`)) {
       onDelete?.(p.id);
-      onNotify?.('Project deleted');
     }
   }, [onDeleteProject]);
+
+  const handleSortChange = useCallback((sortBy) => {
+    const p = projectRef.current;
+    const onUpdate = onUpdateProjectRef.current;
+    onUpdate({ ...p, sortState: sortBy });
+  }, []);
 
   // Memoize progress calculation at component level
   const progress = useMemo(() => computeProgress(project.todos), [project.todos]);
@@ -158,23 +168,50 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
           Back to Projects
         </motion.button>
         <div className="flex items-center gap-2">
+          {onToggleSidebar && (
+            <motion.button
+              onClick={onToggleSidebar}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="relative flex items-center gap-1.5 p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--border-subtle)]/50 transition-colors"
+              aria-label="Toggle active todos sidebar"
+              title="Toggle active todos sidebar"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+              </svg>
+              {activeTodosCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--accent-clay)] text-white text-[9px] font-bold flex items-center justify-center">
+                  {activeTodosCount > 9 ? '9+' : activeTodosCount}
+                </span>
+              )}
+            </motion.button>
+          )}
           <motion.button
-            onClick={onToggleDarkMode}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+            onClick={() => { if (!isToggleAllowed()) return; onToggleDarkMode(); }}
+            whileTap={{ scale: 0.9, rotate: 180 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
             className="flex items-center gap-1.5 p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--border-subtle)]/50 transition-colors"
             aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
             title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
           >
-            {isDarkMode ? (
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-            ) : (
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-              </svg>
-            )}
+            <motion.div
+              key={isDarkMode ? 'dark' : 'light'}
+              initial={{ rotate: -180, opacity: 0 }}
+              animate={{ rotate: 0, opacity: 1 }}
+              exit={{ rotate: 180, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              {isDarkMode ? (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              )}
+            </motion.div>
           </motion.button>
           <motion.button
             onClick={handleDeleteProject}
@@ -234,20 +271,8 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
             </div>
             {/* Dynamic progress */}
             <div className="flex items-center gap-2">
-              <div
-                className="flex-1 h-1.5 bg-[var(--border-subtle)] rounded-full overflow-hidden"
-                role="progressbar"
-                aria-valuenow={progress}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-label={`Project progress: ${progress}%`}
-              >
-                <motion.div
-                  animate={{ width: `${progress}%` }}
-                  transition={{ duration: 0.5 }}
-                  className="h-full rounded-full"
-                  style={{ background: 'linear-gradient(90deg, var(--accent-clay), var(--accent-clay-light))' }}
-                />
+              <div className="flex-1">
+                <ProgressBar value={progress} label={`Project progress: ${progress}%`} />
               </div>
               <span className="text-xs text-[var(--text-muted)] tabular-nums">{progress}%</span>
             </div>
@@ -317,6 +342,7 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
               onRemoveTodo={handleRemoveTodo}
               onEditTodo={handleEditTodo}
               onReorderTodos={handleReorderTodos}
+              onSortChange={handleSortChange}
             />
           </motion.div>
         )}
@@ -329,6 +355,21 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
             transition={{ duration: 0.15 }}
           >
             <WorkspaceTab
+              project={project}
+              onUpdateProject={onUpdateProject}
+              onNotify={onNotify}
+            />
+          </motion.div>
+        )}
+        {activeTab === 'Scratchpad' && (
+          <motion.div
+            key="scratchpad"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <ScratchpadTab
               project={project}
               onUpdateProject={onUpdateProject}
               onNotify={onNotify}
@@ -382,4 +423,6 @@ ProjectDetailView.propTypes = {
   onNotify: PropTypes.func,
   isDarkMode: PropTypes.bool,
   onToggleDarkMode: PropTypes.func,
+  onToggleSidebar: PropTypes.func,
+  activeTodosCount: PropTypes.number,
 };

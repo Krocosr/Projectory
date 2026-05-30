@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import PropTypes from 'prop-types';
 import { defaultForm } from '@/app/data';
 import { STATUSES } from '@/lib/constants';
+import { Input, Textarea, Select, Button } from '@/components/ui';
 
 function FormField({ label, children, required }) {
   return (
@@ -103,12 +104,12 @@ export default function NewProjectModal({ isOpen, onClose, onSave }) {
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <FormField label="Project Title" required>
-                <input
+                <Input
                   type="text"
                   value={form.title}
                   onChange={(e) => update('title', e.target.value)}
                   placeholder="e.g. AI Story App"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all"
+                  className="px-3.5 py-2.5 rounded-xl"
                   autoFocus
                   required
                   aria-required="true"
@@ -117,69 +118,59 @@ export default function NewProjectModal({ isOpen, onClose, onSave }) {
               </FormField>
 
               <FormField label="Description">
-                <textarea
+                <Textarea
                   value={form.description}
                   onChange={(e) => update('description', e.target.value)}
                   placeholder="What is this project about?"
                   rows={3}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all resize-none"
+                  className="px-3.5 py-2.5 rounded-xl"
                   aria-label="Project Description"
                 />
               </FormField>
 
               <div className="grid grid-cols-2 gap-4">
                 <FormField label="Status">
-                  <select
+                  <Select
                     value={form.status}
                     onChange={(e) => update('status', e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all appearance-none"
+                    className="px-3.5 py-2.5 rounded-xl w-full"
                     aria-label="Project Status"
                   >
                     {STATUSES.map((s) => (
                       <option key={s} value={s}>{s}</option>
                     ))}
-                  </select>
+                  </Select>
                 </FormField>
 
                 <FormField label="Deadline">
-                  <input
+                  <Input
                     type="date"
                     value={form.deadline}
                     onChange={(e) => update('deadline', e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all"
+                    className="px-3.5 py-2.5 rounded-xl"
                     aria-label="Project Deadline"
                   />
                 </FormField>
               </div>
 
               <FormField label="Goal">
-                <input
+                <Input
                   type="text"
                   value={form.goal}
                   onChange={(e) => update('goal', e.target.value)}
                   placeholder="What's the north star?"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 focus:border-[var(--accent-clay)] transition-all"
+                  className="px-3.5 py-2.5 rounded-xl"
                   aria-label="Project Goal"
                 />
               </FormField>
 
               <div className="flex items-center gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="flex-1 px-4 py-2.5 rounded-xl border border-[var(--border-subtle)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--border-subtle)] transition-colors"
-                >
+                <Button type="button" variant="secondary" onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl text-sm">
                   Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
-                  style={{
-                    background: 'linear-gradient(135deg, var(--accent-clay), var(--accent-clay-dark, #B8603A))',
-                  }}
-                >
+                </Button>
+                <Button type="submit" variant="gradient" className="flex-1 px-4 py-2.5 rounded-xl text-sm">
                   Create Project
-                </button>
+                </Button>
               </div>
             </form>
           </motion.div>

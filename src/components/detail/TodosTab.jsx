@@ -7,23 +7,32 @@ const SORT_OPTIONS = [
   { value: 'default', label: 'Default' },
   { value: 'priority-high', label: 'Priority \u2193' },
   { value: 'priority-low', label: 'Priority \u2191' },
+  { value: 'deadline-asc', label: 'Deadline \u2191' },
+  { value: 'deadline-desc', label: 'Deadline \u2193' },
   { value: 'alpha-asc', label: 'A \u2192 Z' },
   { value: 'alpha-desc', label: 'Z \u2192 A' },
   { value: 'newest', label: 'Newest' },
   { value: 'oldest', label: 'Oldest' },
 ];
 
-export default function TodosTab({ project, onAddTodo, onToggleTodo, onRemoveTodo, onEditTodo, onReorderTodos }) {
+export default function TodosTab({ project, onAddTodo, onToggleTodo, onRemoveTodo, onEditTodo, onReorderTodos, onSortChange }) {
   const [section, setSection] = useState('Active');
-  const [sortBy, setSortBy] = useState('default');
+  const sortBy = project.sortState || 'default';
 
   const { activeTodos, doneTodos } = useMemo(() => ({
     activeTodos: (project.todos || []).filter((t) => !t.done),
     doneTodos: (project.todos || []).filter((t) => t.done),
   }), [project.todos]);
 
-  const sortTodos = useCallback((todos) => {
-    if (sortBy === 'default' || !todos) return todos;
+  const sortTodos = useCallback((todos, isDone) => {
+    if (sortBy === 'default') {
+      if (isDone) {
+        const sorted = [...todos];
+        sorted.sort((a, b) => b.id - a.id);
+        return sorted;
+      }
+      return todos;
+    }
     const sorted = [...todos];
     switch (sortBy) {
       case 'priority-high':
@@ -50,13 +59,29 @@ export default function TodosTab({ project, onAddTodo, onToggleTodo, onRemoveTod
       case 'oldest':
         sorted.sort((a, b) => a.id - b.id);
         break;
+      case 'deadline-asc':
+        sorted.sort((a, b) => {
+          if (!a.deadline && !b.deadline) return 0;
+          if (!a.deadline) return 1;
+          if (!b.deadline) return -1;
+          return a.deadline.localeCompare(b.deadline);
+        });
+        break;
+      case 'deadline-desc':
+        sorted.sort((a, b) => {
+          if (!a.deadline && !b.deadline) return 0;
+          if (!a.deadline) return 1;
+          if (!b.deadline) return -1;
+          return b.deadline.localeCompare(a.deadline);
+        });
+        break;
     }
     return sorted;
   }, [sortBy]);
 
   const displayedTodos = useMemo(() => {
     const todos = section === 'Active' ? activeTodos : doneTodos;
-    return sortTodos(todos);
+    return sortTodos(todos, section === 'Done');
   }, [section, activeTodos, doneTodos, sortTodos]);
 
   const handleReorderActive = useCallback((reordered) => {
@@ -96,7 +121,7 @@ export default function TodosTab({ project, onAddTodo, onToggleTodo, onRemoveTod
           </svg>
           <select
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
+            onChange={(e) => onSortChange?.(e.target.value)}
             className="text-[11px] px-1.5 py-0.5 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-secondary)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 appearance-none cursor-pointer hover:border-[var(--text-muted)] transition-colors"
             aria-label="Sort todos"
           >
@@ -135,4 +160,5 @@ TodosTab.propTypes = {
   onRemoveTodo: PropTypes.func.isRequired,
   onEditTodo: PropTypes.func.isRequired,
   onReorderTodos: PropTypes.func.isRequired,
+  onSortChange: PropTypes.func,
 };

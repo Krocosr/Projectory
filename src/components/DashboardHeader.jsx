@@ -2,10 +2,12 @@
 import { memo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import PropTypes from 'prop-types';
+import { useRateLimit } from '@/hooks/useRateLimit';
+import { PROJECT_SORT_OPTIONS } from '@/lib/constants';
 
 const FILTERS = ['All', 'Active', 'Paused', 'Ideas', 'Finished', 'Archived'];
 
-const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterChange, projectCounts, searchQuery, onSearchChange, onExport, onImport, isDarkMode, onToggleDarkMode }) {
+const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterChange, projectCounts, searchQuery, onSearchChange, onExport, onImport, isDarkMode, onToggleDarkMode, onToggleSidebar, activeTodosCount, onCleanupArchive, projectSortBy, onProjectSortChange }) {
   const fileInputRef = useRef(null);
 
   const handleImportClick = () => {
@@ -20,6 +22,13 @@ const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterCh
     e.target.value = '';
   };
 
+  const isToggleAllowed = useRateLimit(300);
+
+  const handleToggleDarkMode = () => {
+    if (!isToggleAllowed()) return;
+    onToggleDarkMode();
+  };
+
   return (
     <header className="mb-10">
       <div className="flex items-center justify-between mb-6">
@@ -32,6 +41,15 @@ const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterCh
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {activeFilter === 'Archived' && projectCounts?.Archived > 0 && (
+            <button
+              onClick={onCleanupArchive}
+              title="Delete all archived projects permanently"
+              className="px-3 py-1.5 rounded-lg text-xs font-medium text-red-600 hover:text-white hover:bg-red-600 border border-red-600 transition-colors"
+            >
+              Cleanup Archive
+            </button>
+          )}
           <button
             onClick={onExport}
             title="Export projects as JSON backup"
@@ -51,20 +69,44 @@ const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterCh
             </svg>
           </button>
           <button
-            onClick={onToggleDarkMode}
-            title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--border-subtle)]/50 transition-colors"
+            onClick={onToggleSidebar}
+            title="Active todos"
+            className="relative p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--border-subtle)]/50 transition-colors"
           >
-            {isDarkMode ? (
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-            ) : (
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-              </svg>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+            </svg>
+            {activeTodosCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-[var(--accent-clay)] text-white text-[9px] font-bold flex items-center justify-center">
+                {activeTodosCount > 9 ? '9+' : activeTodosCount}
+              </span>
             )}
           </button>
+          <motion.button
+            onClick={handleToggleDarkMode}
+            title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--border-subtle)]/50 transition-colors"
+            whileTap={{ scale: 0.9, rotate: 180 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+          >
+            <motion.div
+              key={isDarkMode ? 'dark' : 'light'}
+              initial={{ rotate: -180, opacity: 0 }}
+              animate={{ rotate: 0, opacity: 1 }}
+              exit={{ rotate: 180, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              {isDarkMode ? (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              )}
+            </motion.div>
+          </motion.button>
           <input
             ref={fileInputRef}
             type="file"
@@ -89,7 +131,7 @@ const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterCh
         </div>
       </div>
 
-      <nav className="flex gap-1" role="tablist">
+      <nav className="flex items-center gap-1" role="tablist">
         {FILTERS.map((filter, i) => {
           const isActive = activeFilter === filter;
           const count = filter === 'All'
@@ -132,6 +174,21 @@ const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterCh
             </motion.button>
           );
         })}
+        <div className="nav-sort-wrap">
+          <svg className="nav-sort-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h6l-4 5h4l-5 7h6m3-16l4 5h-4l5 7h-6" />
+          </svg>
+          <select
+            value={projectSortBy || 'changed'}
+            onChange={(e) => onProjectSortChange?.(e.target.value)}
+            className="nav-sort-select"
+            aria-label="Sort projects"
+          >
+            {PROJECT_SORT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
       </nav>
     </header>
   );
@@ -156,6 +213,11 @@ DashboardHeader.propTypes = {
   onImport: PropTypes.func,
   isDarkMode: PropTypes.bool,
   onToggleDarkMode: PropTypes.func,
+  onToggleSidebar: PropTypes.func,
+  activeTodosCount: PropTypes.number,
+  onCleanupArchive: PropTypes.func,
+  projectSortBy: PropTypes.string,
+  onProjectSortChange: PropTypes.func,
 };
 
 export default DashboardHeader;
