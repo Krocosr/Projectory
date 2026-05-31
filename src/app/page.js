@@ -16,7 +16,7 @@ import { DEFAULT_PROJECT_SORT } from '@/lib/constants';
 import { Button } from '@/components/ui';
 import { useConfirm } from '@/components/ConfirmModal';
 import { createAutoBackup } from '@/lib/storage';
-import { AUTO_BACKUP_INTERVAL_MS, STREAMER_KEY } from '@/lib/constants';
+import { AUTO_BACKUP_INTERVAL_MS, POLL_INTERVAL_MS, STREAMER_KEY } from '@/lib/constants';
 
 // Lazy load only the heavy ProjectDetailView component
 // ProjectCard is small (~210 lines) and used frequently, so keep it eager for better UX
@@ -135,9 +135,10 @@ function DashboardContent() {
     if (stored === 'true') setIsStreamerMode(true);
   }, []);
 
-  // Periodic auto-backup
+  // Periodic auto-backup (pauses when tab is backgrounded)
   useEffect(() => {
     const timer = setInterval(() => {
+      if (document.hidden) return;
       if (projects.length > 0) {
         createAutoBackup(projects);
         if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
@@ -218,6 +219,7 @@ function DashboardContent() {
   useEffect(() => {
     if (!ready) return;
     const poll = async () => {
+      if (document.hidden) return;
       try {
         const res = await fetch('/api/projects/poll');
         if (!res.ok) return;
@@ -238,9 +240,14 @@ function DashboardContent() {
         // Server may not be running - silently ignore
       }
     };
+    const handleVisibility = () => { if (!document.hidden) poll(); };
+    document.addEventListener('visibilitychange', handleVisibility);
     poll();
-    pollIntervalRef.current = setInterval(poll, 3000);
-    return () => { if (pollIntervalRef.current) clearInterval(pollIntervalRef.current); };
+    pollIntervalRef.current = setInterval(poll, POLL_INTERVAL_MS);
+    return () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [ready]);
 
   // Sync selected project when URL changes (handles browser back/forward)
@@ -356,6 +363,8 @@ function DashboardContent() {
   }, [router]);
 
   const handleDeleteProject = useCallback((id) => {
+    const snapshot = [...projects];
+    const projectToArchive = projects.find((p) => p.id === id);
     pendingNavigateHomeRef.current = true;
     setSelectedProject(null);
     setProjects((current) => {
@@ -375,10 +384,17 @@ function DashboardContent() {
       return updated;
     });
     router.push('/', { scroll: false });
-    addToast('Project archived');
-  }, [router, addToast, setSelectedProject]);
+    addToast(`"${projectToArchive?.title || 'Project'}" archived`, 'success', {
+      onUndo: () => {
+        setProjects(snapshot);
+        saveProjects(snapshot);
+      }
+    });
+  }, [router, addToast, setSelectedProject, projects]);
 
   const handleDeletePermanent = useCallback((id) => {
+    const snapshot = [...projects];
+    const deletedProject = projects.find((p) => p.id === id);
     pendingNavigateHomeRef.current = true;
     setSelectedProject(null);
     setProjects((current) => {
@@ -390,8 +406,14 @@ function DashboardContent() {
       return updated;
     });
     router.push('/', { scroll: false });
-    addToast('Project deleted permanently');
-  }, [router, addToast, setSelectedProject]);
+    addToast(`"${deletedProject?.title || 'Project'}" permanently deleted`, 'error', {
+      onUndo: () => {
+        setProjects(snapshot);
+        saveProjects(snapshot);
+        addToast('Project restored');
+      }
+    });
+  }, [router, addToast, setSelectedProject, projects]);
 
   const handleCleanupArchive = useCallback(async () => {
     const archivedCount = projects.filter((p) => p.status === 'Archived').length;
@@ -401,6 +423,7 @@ function DashboardContent() {
     }
     const ok = await confirm(`Permanently delete all ${archivedCount} archived projects? This cannot be undone.`);
     if (!ok) return;
+    const snapshot = [...projects];
     setProjects((current) => {
       const updated = current.filter((p) => p.status !== 'Archived');
       const result = saveProjects(updated);
@@ -409,7 +432,13 @@ function DashboardContent() {
       }
       return updated;
     });
-    addToast(`Deleted ${archivedCount} archived projects`);
+    addToast(`Deleted ${archivedCount} archived projects`, 'success', {
+      onUndo: () => {
+        setProjects(snapshot);
+        saveProjects(snapshot);
+        addToast(`Restored ${archivedCount} archived projects`);
+      }
+    });
   }, [projects, addToast, confirm]);
 
   const handleBack = useCallback(() => {
@@ -505,7 +534,7 @@ function DashboardContent() {
       document.documentElement.classList.toggle('dark', next);
       return next;
     });
-  }, []);
+  }, [addToast]);
 
   const handleProjectDragEnd = useCallback((result) => {
     if (!result.destination) return;
@@ -621,6 +650,7 @@ function DashboardContent() {
                                       onUpdateProject={handleUpdateProject}
                                       onDeleteProject={handleDeleteProject}
                                       onDeletePermanent={handleDeletePermanent}
+                                      onNotify={addToast}
                                     />
                                   </ErrorBoundary>
                                 </div>

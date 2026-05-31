@@ -1,5 +1,5 @@
 import { runMigrations, needsMigration } from './migrations';
-import { BACKUP_KEY } from './constants';
+import { BACKUP_KEY, ARCHIVE_TTL_MS, API_SYNC_DEBOUNCE_MS } from './constants';
 
 const STORAGE_KEY = 'projectory_projects';
 
@@ -32,11 +32,10 @@ export function loadProjects() {
     // Return just the projects array for backward compatibility
     // Recalculate derived data from todos to ensure currentFocus, nextStep, progress, todoCount are accurate
     const projects = migrated.projects.map(recalculateProject);
-    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
     const now = Date.now();
     return projects.filter((p) => {
       if (p.status !== 'Archived' || !p.archivedAt) return true;
-      return now - new Date(p.archivedAt).getTime() <= SEVEN_DAYS_MS;
+      return now - new Date(p.archivedAt).getTime() <= ARCHIVE_TTL_MS;
     });
   } catch (e) {
     console.error('Failed to load projects:', e);
@@ -141,7 +140,7 @@ function syncToApi(projects) {
     } catch {
       // Best-effort — API may not be running
     }
-  }, 2000);
+  }, API_SYNC_DEBOUNCE_MS);
 }
 
 export function saveProjects(projects) {

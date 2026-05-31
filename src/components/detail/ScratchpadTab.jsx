@@ -4,8 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import PropTypes from 'prop-types';
 import { formatRelativeTime } from '@/lib/dateUtils';
 import { Textarea, Button, SectionHeader } from '@/components/ui';
+import { MAX_SCRATCHPAD_ENTRIES } from '@/lib/constants';
 
-const MAX_ENTRIES = 15;
+const MAX_ENTRIES = MAX_SCRATCHPAD_ENTRIES;
 
 export default function ScratchpadTab({ project, onUpdateProject, onNotify }) {
   const [inputText, setInputText] = useState('');

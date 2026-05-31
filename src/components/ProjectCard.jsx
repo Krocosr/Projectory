@@ -148,7 +148,7 @@ function ContextMenu({ x, y, project, onEdit, onChangeStatus, onDelete, onUnarch
   );
 }
 
-function ProjectCard({ project, onClick, onUpdateProject, onDeleteProject, onDeletePermanent }) {
+function ProjectCard({ project, onClick, onUpdateProject, onDeleteProject, onDeletePermanent, onNotify }) {
   const confirm = useConfirm();
   const [contextMenu, setContextMenu] = useState(null);
   const cardRef = useRef(null);
@@ -198,8 +198,15 @@ function ProjectCard({ project, onClick, onUpdateProject, onDeleteProject, onDel
   }, [openContextMenuAt]);
 
   const handleChangeStatus = useCallback((newStatus) => {
+    const prevProject = project;
     onUpdateProject?.({ ...project, status: newStatus });
-  }, [onUpdateProject, project]);
+    onNotify?.(`Status changed to ${newStatus}`, 'success', {
+      onUndo: () => {
+        onUpdateProject?.(prevProject);
+        onNotify?.('Status change undone', 'success');
+      }
+    });
+  }, [onUpdateProject, project, onNotify]);
 
   const handleArchive = useCallback(() => {
     onDeleteProject?.(project.id);
@@ -210,7 +217,7 @@ function ProjectCard({ project, onClick, onUpdateProject, onDeleteProject, onDel
   }, [onUpdateProject, project]);
 
   const handleDeletePermanent = useCallback(async () => {
-    const ok = await confirm(`Permanently delete "${project.title}"? This cannot be undone.`);
+    const ok = await confirm(`Permanently delete "${project.title}"? Undo available for 8 seconds.`);
     if (!ok) return;
     onDeletePermanent?.(project.id);
   }, [onDeletePermanent, project.id, project.title, confirm]);
@@ -306,6 +313,7 @@ ProjectCard.propTypes = {
   onUpdateProject: PropTypes.func,
   onDeleteProject: PropTypes.func,
   onDeletePermanent: PropTypes.func,
+  onNotify: PropTypes.func,
 };
 
 export default memo(ProjectCard, (prevProps, nextProps) => {

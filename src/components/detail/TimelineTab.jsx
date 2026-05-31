@@ -18,7 +18,7 @@ export default function TimelineTab({ project }) {
             {entries.map((entry, idx) => (
               <div key={`${entry.action}-${entry.date}-${idx}`} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-[var(--text-secondary)]">
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--border-subtle)] shrink-0" />
-                <span className="flex-1">{entry.action}</span>
+                <span className="flex-1" data-streamer>{entry.action}</span>
                 <span className="text-xs text-[var(--text-muted)]">{formatRelativeTime(entry.date)}</span>
               </div>
             ))}
