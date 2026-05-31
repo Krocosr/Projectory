@@ -125,7 +125,7 @@ export const TodoItem = memo(function TodoItem({ todo, onToggle, onRemove, onEdi
             className="w-4 h-4 rounded border-[var(--border-checkbox)] accent-[var(--checkbox-accent)] shrink-0"
           />
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            <span className={`text-sm transition-colors truncate ${todo.done ? 'line-through text-[var(--text-muted)]' : 'text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]'}`}>
+            <span data-streamer className={`text-sm transition-colors truncate ${todo.done ? 'line-through text-[var(--text-muted)]' : 'text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]'}`}>
               {todo.text}
             </span>
             {todo.details && (

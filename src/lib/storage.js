@@ -1,4 +1,5 @@
 import { runMigrations, needsMigration } from './migrations';
+import { BACKUP_KEY } from './constants';
 
 const STORAGE_KEY = 'projectory_projects';
 
@@ -157,6 +158,9 @@ export function saveProjects(projects) {
     const serialized = JSON.stringify(projects);
     localStorage.setItem(STORAGE_KEY, serialized);
     
+    // Auto-backup to separate key on every save
+    createAutoBackup(projects);
+    
     // Best-effort API sync for OpenCode tooling
     syncToApi(projects);
     
@@ -172,6 +176,27 @@ export function saveProjects(projects) {
     }
     
     return { success: false, error: e.message || 'Failed to save projects' };
+  }
+}
+
+export function createAutoBackup(projects) {
+  try {
+    const backup = { timestamp: Date.now(), projects };
+    localStorage.setItem(BACKUP_KEY, JSON.stringify(backup));
+    return { success: true };
+  } catch {
+    return { success: false };
+  }
+}
+
+export function restoreFromAutoBackup() {
+  try {
+    const raw = localStorage.getItem(BACKUP_KEY);
+    if (!raw) return null;
+    const { projects } = JSON.parse(raw);
+    return Array.isArray(projects) ? projects : null;
+  } catch {
+    return null;
   }
 }
 

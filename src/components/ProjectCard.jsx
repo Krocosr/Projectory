@@ -5,6 +5,7 @@ import PropTypes from 'prop-types';
 import { STATUSES, STATUS_STYLES, STATUS_COLORS, Z_INDEX } from '@/lib/constants';
 import { formatDeadlineForDisplay, formatLastWorked } from '@/lib/dateUtils';
 import { ProgressBar } from '@/components/ui';
+import { useConfirm } from '@/components/ConfirmModal';
 
 function StatusBadge({ status }) {
   const style = STATUS_STYLES[status] || STATUS_STYLES.Active;
@@ -148,6 +149,7 @@ function ContextMenu({ x, y, project, onEdit, onChangeStatus, onDelete, onUnarch
 }
 
 function ProjectCard({ project, onClick, onUpdateProject, onDeleteProject, onDeletePermanent }) {
+  const confirm = useConfirm();
   const [contextMenu, setContextMenu] = useState(null);
   const cardRef = useRef(null);
   const status = project.status;
@@ -207,11 +209,11 @@ function ProjectCard({ project, onClick, onUpdateProject, onDeleteProject, onDel
     onUpdateProject?.({ ...project, status: 'Active' });
   }, [onUpdateProject, project]);
 
-  const handleDeletePermanent = useCallback(() => {
-    if (window.confirm(`Permanently delete "${project.title}"? This cannot be undone.`)) {
-      onDeletePermanent?.(project.id);
-    }
-  }, [onDeletePermanent, project.id, project.title]);
+  const handleDeletePermanent = useCallback(async () => {
+    const ok = await confirm(`Permanently delete "${project.title}"? This cannot be undone.`);
+    if (!ok) return;
+    onDeletePermanent?.(project.id);
+  }, [onDeletePermanent, project.id, project.title, confirm]);
 
   return (
     <>
@@ -253,13 +255,13 @@ function ProjectCard({ project, onClick, onUpdateProject, onDeleteProject, onDel
             </div>
           </div>
 
-          <h3 className="font-display text-xl font-semibold text-[var(--text-primary)] leading-tight mb-2 line-clamp-2">
+          <h3 className="font-display text-xl font-semibold text-[var(--text-primary)] leading-tight mb-2 line-clamp-2" data-streamer>
             {project.title}
           </h3>
 
           <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-auto line-clamp-2">
             <span className="text-[var(--text-muted)]">Focus:</span>{' '}
-            {project.currentFocus}
+            <span data-streamer>{project.currentFocus}</span>
           </p>
 
           <div className="mt-4 space-y-2.5">

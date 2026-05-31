@@ -1,0 +1,12 @@
+{
+  "name": "Projectory - Personal Project OS",
+  "short_name": "Projectory",
+  "description": "A personal project operating system for solo creators",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F5F0EB",
+  "theme_color": "#D4815B",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

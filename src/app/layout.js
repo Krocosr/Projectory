@@ -1,5 +1,6 @@
 import { Fraunces, DM_Sans } from 'next/font/google';
 import './globals.css';
+import { ConfirmProvider } from '@/components/ConfirmModal';
 
 const fraunces = Fraunces({
   subsets: ['latin'],
@@ -16,12 +17,36 @@ const dmSans = DM_Sans({
 export const metadata = {
   title: 'Deadliner — Personal Project OS',
   description: 'A personal project operating system for solo creators',
+  other: {
+    'theme-color': '#D4815B',
+  },
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${fraunces.variable} ${dmSans.variable}`}>
-      <body>{children}</body>
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#D4815B" />
+        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/icon.svg" />
+      </head>
+      <body>
+        <ConfirmProvider>
+          {children}
+        </ConfirmProvider>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                  navigator.serviceWorker.register('/sw.js');
+                });
+              }
+            `,
+          }}
+        />
+      </body>
     </html>
   );
 }
