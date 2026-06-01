@@ -7,7 +7,7 @@ import { sortTodos, SORT_OPTIONS, groupTodosByDeadline } from '@/lib/todoAggrega
 import { getTemplates, saveTemplate, deleteTemplate, applyTemplateToProject, exportTemplates, importTemplates } from '@/lib/todoTemplates';
 import { Input, Button } from '@/components/ui';
 
-export default function TodosTab({ project, onAddTodo, onToggleTodo, onRemoveTodo, onEditTodo, onReorderTodos, onSortChange }) {
+export default function TodosTab({ project, onAddTodo, onToggleTodo, onRemoveTodo, onEditTodo, onReorderTodos, onSortChange, onUpdateProject, onNotify }) {
   const [section, setSection] = useState('Active');
   const [showGrouped, setShowGrouped] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
