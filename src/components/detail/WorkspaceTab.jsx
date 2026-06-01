@@ -52,6 +52,12 @@ export default function WorkspaceTab({ project, onUpdateProject, onNotify }) {
   const handleAddLink = (e) => {
     e.preventDefault();
     if (!newLinkUrl.trim() || !newLinkTitle.trim()) return;
+    try {
+      new URL(newLinkUrl.trim());
+    } catch {
+      onNotify('Invalid URL');
+      return;
+    }
     const updated = {
       ...project,
       links: [...(project.links || []), { url: newLinkUrl.trim(), title: newLinkTitle.trim() }],
@@ -74,6 +80,14 @@ export default function WorkspaceTab({ project, onUpdateProject, onNotify }) {
   const handleAddAsset = (e) => {
     e.preventDefault();
     if (!assetName.trim()) return;
+    if (assetUrl.trim()) {
+      try {
+        new URL(assetUrl.trim());
+      } catch {
+        onNotify('Invalid asset URL');
+        return;
+      }
+    }
     const newAsset = { name: assetName.trim(), url: assetUrl.trim(), addedAt: new Date().toISOString() };
     const updated = {
       ...project,

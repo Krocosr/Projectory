@@ -243,6 +243,10 @@ export function AddTodoBar({ onAdd }) {
       setTimeout(() => setEmptyError(false), EMPTY_ERROR_TIMEOUT_MS);
       return;
     }
+    if (text.trim().length > 200) {
+      alert('Todo text must be 200 characters or fewer');
+      return;
+    }
     onAdd(text.trim(), priority, details.trim(), deadline);
     setText('');
     setDetails('');
@@ -390,6 +394,10 @@ export function EditTodoModal({ todo, isOpen, onClose, onSave }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!text.trim()) return;
+    if (text.trim().length > 200) {
+      alert('Todo text must be 200 characters or fewer');
+      return;
+    }
     onSave({ ...todo, text: text.trim(), priority, details: details.trim(), deadline });
     onClose();
   };
