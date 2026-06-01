@@ -57,6 +57,7 @@ export function createProject(form) {
     sortState: 'default',
     archivedAt: null,
     scratchpadLog: [],
+    pomodoroLog: [],
     timeline: [{
       date: new Date().toISOString(),
       action: 'Project created',
