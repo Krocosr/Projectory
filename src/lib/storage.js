@@ -31,12 +31,20 @@ export function loadProjects() {
     
     // Return just the projects array for backward compatibility
     // Recalculate derived data from todos to ensure currentFocus, nextStep, progress, todoCount are accurate
-    const projects = migrated.projects.map(recalculateProject);
     const now = Date.now();
-    return projects.filter((p) => {
+    const projects = migrated.projects.map(recalculateProject);
+    const filtered = projects.filter((p) => {
       if (p.status !== 'Archived' || !p.archivedAt) return true;
       return now - new Date(p.archivedAt).getTime() <= ARCHIVE_TTL_MS;
     });
+
+    // Persist filtered list to permanently remove expired archives from localStorage
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      version: migrated.version,
+      projects: filtered,
+    }));
+
+    return filtered;
   } catch (e) {
     console.error('Failed to load projects:', e);
     // If JSON parse fails, clear corrupted data
