@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { readProjects, writeProjects } from '@/lib/fileStorage';
+import { recalculateProject } from '@/lib/storage';
+
+const COMPUTED_FIELDS = ['progress', 'todoCount', 'currentFocus', 'nextStep', 'lastWorked'];
 
 export async function GET(request, { params }) {
   try {
@@ -46,7 +49,10 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
-    projects[index] = { ...projects[index], ...body };
+    const safeBody = Object.fromEntries(
+      Object.entries(body).filter(([key]) => !COMPUTED_FIELDS.includes(key))
+    );
+    projects[index] = recalculateProject({ ...projects[index], ...safeBody });
     writeProjects(projects);
     return NextResponse.json({ project: projects[index] }, { status: 200 });
   } catch (error) {
