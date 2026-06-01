@@ -122,10 +122,10 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
   const handleReorderTodos = useCallback((reorderedTodos) => {
     const p = projectRef.current;
     const onUpdate = onUpdateProjectRef.current;
-    const updated = {
+    const updated = recalculateProject({
       ...p,
       todos: reorderedTodos,
-    };
+    });
     onUpdate(updated);
   }, []);
 
