@@ -9,7 +9,7 @@ import { STATUS_COLORS } from '@/lib/constants';
 import { formatLastWorked } from '@/lib/dateUtils';
 import { useRateLimit } from '@/hooks/useRateLimit';
 import { ProgressBar } from '@/components/ui';
-import { OverviewTab, TodosTab, WorkspaceTab, TimelineTab, SettingsTab, EditTodoModal, ScratchpadTab } from '@/components/detail';
+import { OverviewTab, TodosTab, WorkspaceTab, TimelineTab, SettingsTab, EditTodoModal, ScratchpadTab, PomodoroTimer } from '@/components/detail';
 
 
 const TABS = ['Overview', 'Todos', 'Workspace', 'Scratchpad', 'Timeline', 'Settings'];
@@ -308,6 +308,8 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
         </div>
       </div>
 
+      <PomodoroTimer project={project} onUpdateProject={onUpdateProject} />
+
       <nav className="flex gap-1 mb-6 border-b border-[var(--border-subtle)]" role="tablist">
         {TABS.map((tab) => {
           const isActive = activeTab === tab;
@@ -371,6 +373,8 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
               onEditTodo={handleEditTodo}
               onReorderTodos={handleReorderTodos}
               onSortChange={handleSortChange}
+              onUpdateProject={onUpdateProject}
+              onNotify={onNotify}
             />
           </motion.div>
         )}
