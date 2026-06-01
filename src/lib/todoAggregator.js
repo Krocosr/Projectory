@@ -1,3 +1,100 @@
+export const SORT_OPTIONS = [
+  { value: 'default', label: 'Default' },
+  { value: 'priority-high', label: 'Priority \u2193' },
+  { value: 'priority-low', label: 'Priority \u2191' },
+  { value: 'deadline-asc', label: 'Deadline \u2191' },
+  { value: 'deadline-desc', label: 'Deadline \u2193' },
+  { value: 'alpha-asc', label: 'A \u2192 Z' },
+  { value: 'alpha-desc', label: 'Z \u2192 A' },
+  { value: 'newest', label: 'Newest' },
+  { value: 'oldest', label: 'Oldest' },
+];
+
+const priorityRank = { High: 0, Medium: 1, Low: 2 };
+
+function resolveDeadline(todo) {
+  const d = todo.deadline || todo.projectDeadline;
+  if (!d) return null;
+  const date = new Date(d);
+  return isNaN(date) ? null : date;
+}
+
+export function sortTodos(todos, sortBy = 'default') {
+  if (sortBy === 'default') return [...todos];
+
+  const sorted = [...todos];
+
+  switch (sortBy) {
+    case 'priority':
+    case 'priority-high':
+      sorted.sort((a, b) => {
+        const pDiff = (priorityRank[a.priority] ?? 1) - (priorityRank[b.priority] ?? 1);
+        if (pDiff !== 0) return pDiff;
+
+        const dA = resolveDeadline(a);
+        const dB = resolveDeadline(b);
+        if (dA && dB) return dA - dB;
+        if (dA) return -1;
+        if (dB) return 1;
+
+        return (a.createdAt || '').localeCompare(b.createdAt || '');
+      });
+      break;
+
+    case 'priority-low':
+      sorted.sort((a, b) => {
+        const rank = { High: 2, Medium: 1, Low: 0 };
+        return (rank[a.priority] ?? 1) - (rank[b.priority] ?? 1);
+      });
+      break;
+
+    case 'deadline':
+    case 'deadline-asc':
+      sorted.sort((a, b) => {
+        const dA = resolveDeadline(a);
+        const dB = resolveDeadline(b);
+        if (dA && dB) return dA - dB;
+        if (dA) return -1;
+        if (dB) return 1;
+        return 0;
+      });
+      break;
+
+    case 'deadline-desc':
+      sorted.sort((a, b) => {
+        const dA = resolveDeadline(a);
+        const dB = resolveDeadline(b);
+        if (dA && dB) return dB - dA;
+        if (dA) return -1;
+        if (dB) return 1;
+        return 0;
+      });
+      break;
+
+    case 'project':
+      sorted.sort((a, b) => (a.projectTitle || '').localeCompare(b.projectTitle || ''));
+      break;
+
+    case 'alpha-asc':
+      sorted.sort((a, b) => a.text.localeCompare(b.text));
+      break;
+
+    case 'alpha-desc':
+      sorted.sort((a, b) => b.text.localeCompare(a.text));
+      break;
+
+    case 'newest':
+      sorted.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      break;
+
+    case 'oldest':
+      sorted.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+      break;
+  }
+
+  return sorted;
+}
+
 export function getActiveTodos(projects, sortBy = 'priority') {
   const results = [];
 
@@ -22,45 +119,61 @@ export function getActiveTodos(projects, sortBy = 'priority') {
     }
   }
 
-  const priorityOrder = { High: 0, Medium: 1, Low: 2 };
+  return sortTodos(results, sortBy);
+}
 
-  results.sort((a, b) => {
-    if (sortBy === 'priority') {
-      const pDiff = (priorityOrder[a.priority] ?? 1) - (priorityOrder[b.priority] ?? 1);
-      if (pDiff !== 0) return pDiff;
+function getLocalDate(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
 
-      const dA = a.projectDeadline ? new Date(a.projectDeadline) : null;
-      const dB = b.projectDeadline ? new Date(b.projectDeadline) : null;
-      if (dA && dB && !isNaN(dA) && !isNaN(dB)) return dA - dB;
-      if (dA && !isNaN(dA)) return -1;
-      if (dB && !isNaN(dB)) return 1;
+export function groupTodosByDeadline(todos) {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const msDay = 1000 * 60 * 60 * 24;
 
-      return (a.createdAt || '').localeCompare(b.createdAt || '');
+  const groups = {
+    overdue: [],
+    today: [],
+    thisWeek: [],
+    nextMonth: [],
+    noDeadline: [],
+  };
+
+  for (const todo of todos) {
+    if (!todo.deadline) {
+      groups.noDeadline.push(todo);
+      continue;
     }
 
-    if (sortBy === 'deadline') {
-      const dA = a.projectDeadline ? new Date(a.projectDeadline) : null;
-      const dB = b.projectDeadline ? new Date(b.projectDeadline) : null;
-      if (dA && dB && !isNaN(dA) && !isNaN(dB)) return dA - dB;
-      if (dA && !isNaN(dA)) return -1;
-      if (dB && !isNaN(dB)) return 1;
-      return 0;
+    const deadlineDate = getLocalDate(todo.deadline);
+    if (isNaN(deadlineDate.getTime())) {
+      groups.noDeadline.push(todo);
+      continue;
     }
 
-    if (sortBy === 'project') {
-      return a.projectTitle.localeCompare(b.projectTitle);
+    const diffDays = Math.round((deadlineDate - today) / msDay);
+
+    if (diffDays < 0) {
+      groups.overdue.push(todo);
+    } else if (diffDays === 0) {
+      groups.today.push(todo);
+    } else if (diffDays <= 7) {
+      groups.thisWeek.push(todo);
+    } else {
+      groups.nextMonth.push(todo);
     }
+  }
 
-    if (sortBy === 'newest') {
-      return (b.createdAt || '').localeCompare(a.createdAt || '');
-    }
+  for (const key of Object.keys(groups)) {
+    if (key === 'noDeadline') continue;
+    groups[key].sort((a, b) => {
+      if (!a.deadline && !b.deadline) return 0;
+      if (!a.deadline) return 1;
+      if (!b.deadline) return -1;
+      return a.deadline.localeCompare(b.deadline);
+    });
+  }
 
-    if (sortBy === 'oldest') {
-      return (a.createdAt || '').localeCompare(b.createdAt || '');
-    }
-
-    return 0;
-  });
-
-  return results;
+  return groups;
 }
