@@ -1,4 +1,5 @@
-import { runMigrations, needsMigration } from './migrations';
+import { runMigrations, needsMigration, getCurrentVersion } from './migrations';
+import { BACKUP_KEY, ARCHIVE_TTL_MS, API_SYNC_DEBOUNCE_MS } from './constants';
 
 const STORAGE_KEY = 'projectory_projects';
 
@@ -30,13 +31,20 @@ export function loadProjects() {
     
     // Return just the projects array for backward compatibility
     // Recalculate derived data from todos to ensure currentFocus, nextStep, progress, todoCount are accurate
-    const projects = migrated.projects.map(recalculateProject);
-    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
     const now = Date.now();
-    return projects.filter((p) => {
+    const projects = migrated.projects.map(recalculateProject);
+    const filtered = projects.filter((p) => {
       if (p.status !== 'Archived' || !p.archivedAt) return true;
-      return now - new Date(p.archivedAt).getTime() <= SEVEN_DAYS_MS;
+      return now - new Date(p.archivedAt).getTime() <= ARCHIVE_TTL_MS;
     });
+
+    // Persist filtered list to permanently remove expired archives from localStorage
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      version: migrated.version,
+      projects: filtered,
+    }));
+
+    return filtered;
   } catch (e) {
     console.error('Failed to load projects:', e);
     // If JSON parse fails, clear corrupted data
@@ -65,7 +73,10 @@ export async function recoverFromApi() {
     const data = await res.json();
     if (data.projects && data.projects.length > 0) {
       // Restore to localStorage immediately so subsequent loads are instant
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data.projects));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        version: getCurrentVersion(),
+        projects: data.projects,
+      }));
       console.log('[recovery] Restored', data.projects.length, 'projects from server backup');
       return data.projects;
     }
@@ -140,7 +151,7 @@ function syncToApi(projects) {
     } catch {
       // Best-effort — API may not be running
     }
-  }, 2000);
+  }, API_SYNC_DEBOUNCE_MS);
 }
 
 export function saveProjects(projects) {
@@ -157,6 +168,9 @@ export function saveProjects(projects) {
     const serialized = JSON.stringify(projects);
     localStorage.setItem(STORAGE_KEY, serialized);
     
+    // Auto-backup to separate key on every save
+    createAutoBackup(projects);
+    
     // Best-effort API sync for OpenCode tooling
     syncToApi(projects);
     
@@ -172,6 +186,27 @@ export function saveProjects(projects) {
     }
     
     return { success: false, error: e.message || 'Failed to save projects' };
+  }
+}
+
+export function createAutoBackup(projects) {
+  try {
+    const backup = { timestamp: Date.now(), projects };
+    localStorage.setItem(BACKUP_KEY, JSON.stringify(backup));
+    return { success: true };
+  } catch {
+    return { success: false };
+  }
+}
+
+export function restoreFromAutoBackup() {
+  try {
+    const raw = localStorage.getItem(BACKUP_KEY);
+    if (!raw) return null;
+    const { projects } = JSON.parse(raw);
+    return Array.isArray(projects) ? projects : null;
+  } catch {
+    return null;
   }
 }
 

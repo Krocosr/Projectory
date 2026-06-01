@@ -7,7 +7,7 @@ import { PROJECT_SORT_OPTIONS } from '@/lib/constants';
 
 const FILTERS = ['All', 'Active', 'Paused', 'Ideas', 'Finished', 'Archived'];
 
-const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterChange, projectCounts, searchQuery, onSearchChange, onExport, onImport, isDarkMode, onToggleDarkMode, onToggleSidebar, activeTodosCount, onCleanupArchive, projectSortBy, onProjectSortChange }) {
+const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterChange, projectCounts, searchQuery, onSearchChange, onExport, onImport, isDarkMode, onToggleDarkMode, onToggleSidebar, activeTodosCount, onCleanupArchive, projectSortBy, onProjectSortChange, isStreamerMode, onToggleStreamerMode }) {
   const fileInputRef = useRef(null);
 
   const handleImportClick = () => {
@@ -82,6 +82,30 @@ const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterCh
               </span>
             )}
           </button>
+          <motion.button
+            onClick={onToggleStreamerMode}
+            title={isStreamerMode ? 'Disable streamer mode' : 'Enable streamer mode'}
+            className={`p-2 rounded-lg transition-colors ${
+              isStreamerMode
+                ? 'text-red-400 hover:text-red-300 bg-red-500/10'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--border-subtle)]/50'
+            }`}
+            whileTap={{ scale: 0.9 }}
+          >
+            {isStreamerMode ? (
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                <line x1="1" y1="1" x2="23" y2="23" />
+                <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            )}
+          </motion.button>
           <motion.button
             onClick={handleToggleDarkMode}
             title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -218,6 +242,8 @@ DashboardHeader.propTypes = {
   onCleanupArchive: PropTypes.func,
   projectSortBy: PropTypes.string,
   onProjectSortChange: PropTypes.func,
+  isStreamerMode: PropTypes.bool,
+  onToggleStreamerMode: PropTypes.func,
 };
 
 export default DashboardHeader;

@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { createTodo } from '@/lib/storage';
+import { EMPTY_ERROR_TIMEOUT_MS } from '@/lib/constants';
 import { PRIORITY_STYLES, Z_INDEX } from '@/lib/constants';
 import { formatRelativeTime, formatDeadlineForDisplay } from '@/lib/dateUtils';
 import { Input, Textarea, Select, Button } from '@/components/ui';
@@ -41,7 +42,7 @@ export function DetailRow({ label, value }) {
       <dt className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)] mb-1.5">
         {label}
       </dt>
-      <dd className="text-sm text-[var(--text-primary)] leading-relaxed">{value}</dd>
+      <dd className="text-sm text-[var(--text-primary)] leading-relaxed" data-streamer>{value}</dd>
     </div>
   );
 }
@@ -125,7 +126,7 @@ export const TodoItem = memo(function TodoItem({ todo, onToggle, onRemove, onEdi
             className="w-4 h-4 rounded border-[var(--border-checkbox)] accent-[var(--checkbox-accent)] shrink-0"
           />
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            <span className={`text-sm transition-colors truncate ${todo.done ? 'line-through text-[var(--text-muted)]' : 'text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]'}`}>
+            <span data-streamer className={`text-sm transition-colors truncate ${todo.done ? 'line-through text-[var(--text-muted)]' : 'text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]'}`}>
               {todo.text}
             </span>
             {todo.details && (
@@ -239,7 +240,7 @@ export function AddTodoBar({ onAdd }) {
     e.preventDefault();
     if (!text.trim()) {
       setEmptyError(true);
-      setTimeout(() => setEmptyError(false), 600);
+      setTimeout(() => setEmptyError(false), EMPTY_ERROR_TIMEOUT_MS);
       return;
     }
     if (text.trim().length > 200) {

@@ -1,12 +1,14 @@
 'use client';
 import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
+import { useConfirm } from '@/components/ConfirmModal';
 import { DetailRow } from './shared';
 import { STATUSES, STATUS_COLORS, STATUS_BG } from '@/lib/constants';
 import { formatDeadlineForDisplay, toDateInputValue } from '@/lib/dateUtils';
 import { Input, Textarea, Select, Button } from '@/components/ui';
 
 export default function SettingsTab({ project, onUpdateProject, onNotify, onUnsavedChanges }) {
+  const confirm = useConfirm();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ ...project });
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -57,13 +59,13 @@ export default function SettingsTab({ project, onUpdateProject, onNotify, onUnsa
     onNotify('Project saved');
   };
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
     if (hasUnsavedChanges) {
-      if (window.confirm('You have unsaved changes. Discard them?')) {
-        setForm({ ...project });
-        setEditing(false);
-        setHasUnsavedChanges(false);
-      }
+      const ok = await confirm('You have unsaved changes. Discard them?');
+      if (!ok) return;
+      setForm({ ...project });
+      setEditing(false);
+      setHasUnsavedChanges(false);
     } else {
       setEditing(false);
     }

@@ -1,15 +1,9 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Z_INDEX } from '@/lib/constants';
+import { Z_INDEX, TOAST_DURATION_MS, UNDO_TOAST_DURATION_MS, MAX_VISIBLE_TOASTS } from '@/lib/constants';
 import { AnimatePresence, motion } from 'framer-motion';
 
 let toastIdCounter = 0;
-
-// Maximum number of toasts visible at once
-const MAX_VISIBLE_TOASTS = 3;
-
-// Toast auto-dismiss duration in milliseconds
-const TOAST_DURATION = 3000;
 
 /**
  * Toast notification hook with queue management
@@ -36,22 +30,23 @@ export function useToast() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const addToast = useCallback((message, type = 'success') => {
+  const addToast = useCallback((message, type = 'success', options = {}) => {
     const id = ++toastIdCounter;
+    const { onUndo, undoLabel = 'Undo' } = options;
+    const hasAction = !!onUndo;
+    const duration = hasAction ? UNDO_TOAST_DURATION_MS : TOAST_DURATION_MS;
     
     setToasts((prev) => {
-      // If we're at max capacity, remove the oldest toast
       const updated = prev.length >= MAX_VISIBLE_TOASTS 
         ? prev.slice(1) 
         : prev;
       
-      return [...updated, { id, message, type }];
+      return [...updated, { id, message, type, onUndo, undoLabel }];
     });
     
-    // Set auto-dismiss timeout
     timeoutRefs.current[id] = setTimeout(() => {
       dismissToast(id);
-    }, TOAST_DURATION);
+    }, duration);
   }, [dismissToast]);
 
   // Cleanup timeouts on unmount
@@ -119,6 +114,17 @@ export default function ToastContainer({ toasts, onDismiss }) {
           >
             {ICONS[toast.type] || ICONS.success}
             <span>{toast.message}</span>
+            {toast.onUndo && (
+              <button
+                onClick={() => {
+                  toast.onUndo();
+                  onDismiss(toast.id);
+                }}
+                className="ml-2 px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-white/20 hover:bg-white/30 active:bg-white/40 transition-colors uppercase tracking-wider"
+              >
+                {toast.undoLabel}
+              </button>
+            )}
             {onDismiss && (
               <button
                 onClick={() => onDismiss(toast.id)}
