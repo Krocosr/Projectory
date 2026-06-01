@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { readProjects, writeProjects } from '@/lib/fileStorage';
+import { recalculateProject } from '@/lib/storage';
+
+const COMPUTED_FIELDS = ['progress', 'todoCount', 'currentFocus', 'nextStep', 'lastWorked'];
 
 export async function GET() {
   try {
@@ -22,7 +25,10 @@ export async function POST(request) {
     const projects = readProjects();
     const existingIndex = projects.findIndex((p) => p.id === project.id);
     if (existingIndex >= 0) {
-      projects[existingIndex] = project;
+      const safeBody = Object.fromEntries(
+        Object.entries(project).filter(([key]) => !COMPUTED_FIELDS.includes(key))
+      );
+      projects[existingIndex] = recalculateProject({ ...projects[existingIndex], ...safeBody });
     } else {
       projects.push(project);
     }
