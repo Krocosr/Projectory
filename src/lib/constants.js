@@ -2,6 +2,17 @@
 
 // Timing
 export const AUTO_SAVE_DEBOUNCE_MS = 600;
+export const TOAST_DURATION_MS = 3000;
+export const UNDO_TOAST_DURATION_MS = 8000;
+export const API_SYNC_DEBOUNCE_MS = 2000;
+export const POLL_INTERVAL_MS = 3000;
+export const ARCHIVE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+export const MAX_VISIBLE_TOASTS = 3;
+export const MAX_SCRATCHPAD_ENTRIES = 15;
+export const EMPTY_ERROR_TIMEOUT_MS = 600;
+export const AUTO_BACKUP_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+export const STREAMER_KEY = 'projectory_streamer_mode';
+export const BACKUP_KEY = 'projectory_auto_backup';
 
 // Z-index scale
 export const Z_INDEX = {

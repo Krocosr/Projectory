@@ -6,14 +6,7 @@ import PropTypes from 'prop-types';
 import { PRIORITY_STYLES } from '@/lib/constants';
 import { formatDeadlineForDisplay } from '@/lib/dateUtils';
 import { Input } from '@/components/ui';
-
-const SORT_OPTIONS = [
-  { value: 'priority', label: 'Priority ↓' },
-  { value: 'deadline', label: 'Deadline ↑' },
-  { value: 'project', label: 'A → Z' },
-  { value: 'newest', label: 'Newest' },
-  { value: 'oldest', label: 'Oldest' },
-];
+import { TODO_SORT_OPTIONS, sortTodos } from '@/lib/todoAggregator';
 
 function TodoItem({ todo, onToggle, onNavigate, dragHandleProps }) {
   const truncateProjectName = (name) => {
@@ -95,37 +88,8 @@ export default function ActiveTodosSidebar({ isOpen, todos, onToggleTodo, onNavi
     );
   }, [todos, searchQuery]);
 
-  // Sort filtered todos
-  const sortedTodos = useMemo(() => {
-    const sorted = [...filteredTodos];
-    const priorityOrder = { High: 0, Medium: 1, Low: 2 };
-    
-    switch (sortBy) {
-      case 'priority':
-        sorted.sort((a, b) => (priorityOrder[a.priority] ?? 1) - (priorityOrder[b.priority] ?? 1));
-        break;
-      case 'deadline':
-        sorted.sort((a, b) => {
-          const dA = a.projectDeadline ? new Date(a.projectDeadline) : null;
-          const dB = b.projectDeadline ? new Date(b.projectDeadline) : null;
-          if (dA && dB) return dA - dB;
-          if (dA) return -1;
-          if (dB) return 1;
-          return 0;
-        });
-        break;
-      case 'project':
-        sorted.sort((a, b) => a.projectTitle.localeCompare(b.projectTitle));
-        break;
-      case 'newest':
-        sorted.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-        break;
-      case 'oldest':
-        sorted.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
-        break;
-    }
-    return sorted;
-  }, [filteredTodos, sortBy]);
+  // Sort filtered todos using shared sort function
+  const sortedTodos = useMemo(() => sortTodos(filteredTodos, sortBy), [filteredTodos, sortBy]);
 
   // Display todos (can be reordered via DND)
   const [displayTodos, setDisplayTodos] = useState([]);
@@ -178,7 +142,7 @@ export default function ActiveTodosSidebar({ isOpen, todos, onToggleTodo, onNavi
                 className="text-[11px] px-1.5 py-0.5 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-secondary)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 appearance-none cursor-pointer hover:border-[var(--text-muted)] transition-colors"
                 aria-label="Sort todos"
               >
-                {SORT_OPTIONS.map((opt) => (
+                {TODO_SORT_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </select>

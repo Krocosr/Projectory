@@ -107,6 +107,13 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
+.streamer-mode [data-streamer] {
+  -webkit-text-security: disc;
+  text-security: disc;
+  cursor: default;
+  user-select: none;
+}
+
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
   20% { transform: translateX(-4px); }

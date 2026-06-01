@@ -2,9 +2,11 @@
 import { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { Input, Textarea, Button, SectionHeader } from '@/components/ui';
+import { AUTO_SAVE_DEBOUNCE_MS } from '@/lib/constants';
 
 export default function WorkspaceTab({ project, onUpdateProject, onNotify }) {
   const [noteText, setNoteText] = useState(project.notes || '');
+  const [saving, setSaving] = useState(false);
   const [newLinkUrl, setNewLinkUrl] = useState('');
   const [newLinkTitle, setNewLinkTitle] = useState('');
   const [assetName, setAssetName] = useState('');
@@ -23,13 +25,16 @@ export default function WorkspaceTab({ project, onUpdateProject, onNotify }) {
   }, [project.id]);
 
   useEffect(() => {
+    if (noteText === (project.notes || '')) return;
+    setSaving(true);
     const timer = setTimeout(() => {
-      if (noteText !== projectRef.current.notes) {
-        onUpdateRef.current({ ...projectRef.current, notes: noteText });
+      if (noteTextRef.current !== projectRef.current.notes) {
+        onUpdateRef.current({ ...projectRef.current, notes: noteTextRef.current });
       }
-    }, 600);
-    return () => clearTimeout(timer);
-  }, [noteText]);
+      setSaving(false);
+    }, AUTO_SAVE_DEBOUNCE_MS);
+    return () => { clearTimeout(timer); setSaving(false); };
+  }, [noteText, project.notes]);
 
   useEffect(() => {
     return () => {
@@ -95,7 +100,17 @@ export default function WorkspaceTab({ project, onUpdateProject, onNotify }) {
         <SectionHeader
           icon={<svg className="w-4 h-4 text-[var(--accent-clay)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
           label="Notes"
-        />
+        >
+          {saving && (
+            <span className="ml-auto text-[10px] text-[var(--text-muted)] flex items-center gap-1">
+              <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Saving...
+            </span>
+          )}
+        </SectionHeader>
         <div className="pl-10 space-y-3">
           <textarea
             value={noteText}

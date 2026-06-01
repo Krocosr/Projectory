@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useConfirm } from '@/components/ConfirmModal';
 import { createTodo, recalculateProject } from '@/lib/storage';
 import { computeProgress, computeNextStepText, getFirstActiveTodo } from '@/components/detail/shared';
 import PropTypes from 'prop-types';
@@ -13,7 +14,8 @@ import { OverviewTab, TodosTab, WorkspaceTab, TimelineTab, SettingsTab, EditTodo
 
 const TABS = ['Overview', 'Todos', 'Workspace', 'Scratchpad', 'Timeline', 'Settings'];
 
-export default function ProjectDetailView({ project, onBack, onUpdateProject, onDeleteProject, onNotify, isDarkMode, onToggleDarkMode, onToggleSidebar, activeTodosCount }) {
+export default function ProjectDetailView({ project, onBack, onUpdateProject, onDeleteProject, onNotify, isDarkMode, onToggleDarkMode, onToggleSidebar, activeTodosCount, isStreamerMode, onToggleStreamerMode }) {
+  const confirm = useConfirm();
   const isToggleAllowed = useRateLimit(300);
   const [activeTab, setActiveTab] = useState('Overview');
   const [editingTodo, setEditingTodo] = useState(null);
@@ -26,16 +28,16 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
   onUpdateProjectRef.current = onUpdateProject;
   onNotifyRef.current = onNotify;
 
-  const handleTabChange = useCallback((newTab) => {
+  const handleTabChange = useCallback(async (newTab) => {
     if (activeTab === 'Settings' && settingsHasUnsavedChanges) {
-      if (window.confirm('You have unsaved changes in Settings. Discard them?')) {
-        setActiveTab(newTab);
-        setSettingsHasUnsavedChanges(false);
-      }
+      const ok = await confirm('You have unsaved changes in Settings. Discard them?');
+      if (!ok) return;
+      setActiveTab(newTab);
+      setSettingsHasUnsavedChanges(false);
     } else {
       setActiveTab(newTab);
     }
-  }, [activeTab, settingsHasUnsavedChanges]);
+  }, [activeTab, settingsHasUnsavedChanges, confirm]);
 
   const handleAddTodo = useCallback((text, priority, details, deadline) => {
     const p = projectRef.current;
@@ -127,13 +129,13 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
     onUpdate(updated);
   }, []);
 
-  const handleDeleteProject = useCallback(() => {
+  const handleDeleteProject = useCallback(async () => {
     const p = projectRef.current;
     const onDelete = onDeleteProject;
-    if (window.confirm(`Archive "${p.title}"? It will be moved to Archived status.`)) {
-      onDelete?.(p.id);
-    }
-  }, [onDeleteProject]);
+    const ok = await confirm(`Archive "${p.title}"? It will be moved to Archived status.`);
+    if (!ok) return;
+    onDelete?.(p.id);
+  }, [onDeleteProject, confirm]);
 
   const handleSortChange = useCallback((sortBy) => {
     const p = projectRef.current;
@@ -187,6 +189,32 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
               )}
             </motion.button>
           )}
+          {onToggleStreamerMode && (
+            <motion.button
+              onClick={onToggleStreamerMode}
+              title={isStreamerMode ? 'Disable streamer mode' : 'Enable streamer mode'}
+              className={`p-1.5 rounded-lg transition-colors ${
+                isStreamerMode
+                  ? 'text-red-400 hover:text-red-300 bg-red-500/10'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--border-subtle)]/50'
+              }`}
+              whileTap={{ scale: 0.9 }}
+            >
+              {isStreamerMode ? (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                  <line x1="1" y1="1" x2="23" y2="23" />
+                  <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              )}
+            </motion.button>
+          )}
           <motion.button
             onClick={() => { if (!isToggleAllowed()) return; onToggleDarkMode(); }}
             whileTap={{ scale: 0.9, rotate: 180 }}
@@ -232,7 +260,7 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
         <div className="flex items-center gap-3">
           <div className="w-3 h-3 rounded-full shrink-0" style={{ background: STATUS_COLORS[project.status] || '#7A706A' }} />
           <div>
-            <h1 className="font-display text-2xl font-bold text-[var(--text-primary)]">
+            <h1 className="font-display text-2xl font-bold text-[var(--text-primary)]" data-streamer>
               {project.title}
             </h1>
             <p className="text-sm text-[var(--text-secondary)] mt-0.5">
@@ -259,11 +287,11 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
             <div className="flex flex-wrap gap-x-6 gap-y-1.5 mb-3">
               <span className="text-xs text-[var(--text-secondary)]">
                 <span className="text-[var(--text-muted)]">Focus:</span>{' '}
-                {headerInfo.currentFocusText}
+                <span data-streamer>{headerInfo.currentFocusText}</span>
               </span>
               <span className="text-xs text-[var(--text-secondary)]">
                 <span className="text-[var(--text-muted)]">Next:</span>{' '}
-                {headerInfo.nextStepText}
+                <span data-streamer>{headerInfo.nextStepText}</span>
               </span>
               <span className="text-xs text-[var(--text-muted)]">
                 {headerInfo.activeTodoCount} todos remaining
@@ -423,6 +451,8 @@ ProjectDetailView.propTypes = {
   onNotify: PropTypes.func,
   isDarkMode: PropTypes.bool,
   onToggleDarkMode: PropTypes.func,
+  isStreamerMode: PropTypes.bool,
+  onToggleStreamerMode: PropTypes.func,
   onToggleSidebar: PropTypes.func,
   activeTodosCount: PropTypes.number,
 };
