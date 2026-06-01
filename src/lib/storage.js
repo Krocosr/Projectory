@@ -1,4 +1,4 @@
-import { runMigrations, needsMigration } from './migrations';
+import { runMigrations, needsMigration, getCurrentVersion } from './migrations';
 import { BACKUP_KEY, ARCHIVE_TTL_MS, API_SYNC_DEBOUNCE_MS } from './constants';
 
 const STORAGE_KEY = 'projectory_projects';
@@ -73,7 +73,10 @@ export async function recoverFromApi() {
     const data = await res.json();
     if (data.projects && data.projects.length > 0) {
       // Restore to localStorage immediately so subsequent loads are instant
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data.projects));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        version: getCurrentVersion(),
+        projects: data.projects,
+      }));
       console.log('[recovery] Restored', data.projects.length, 'projects from server backup');
       return data.projects;
     }
