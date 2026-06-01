@@ -5,3 +5,4 @@ export { default as ScratchpadTab } from './ScratchpadTab';
 export { default as TimelineTab } from './TimelineTab';
 export { default as SettingsTab } from './SettingsTab';
 export { EditTodoModal } from './shared';
+export { default as PomodoroTimer } from './PomodoroTimer';
