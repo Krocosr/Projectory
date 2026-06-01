@@ -336,7 +336,7 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
         })}
       </nav>
 
-      <AnimatePresence mode="popLayout">
+      <AnimatePresence mode="wait">
         {activeTab === 'Overview' && (
           <motion.div
             key="overview"

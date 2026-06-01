@@ -30,6 +30,21 @@ export default function RootLayout({ children }) {
         <meta name="theme-color" content="#D4815B" />
         <link rel="icon" href="/icon.svg" type="image/svg+xml" />
         <link rel="apple-touch-icon" href="/icon.svg" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                let isDark = localStorage.getItem('projectory_dark_mode') === 'true';
+                if (!('projectory_dark_mode' in localStorage)) {
+                  isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                }
+                if (isDark) {
+                  document.documentElement.classList.add('dark');
+                }
+              } catch (_) {}
+            `,
+          }}
+        />
       </head>
       <body>
         <ConfirmProvider>

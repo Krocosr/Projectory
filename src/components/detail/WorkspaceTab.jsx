@@ -117,7 +117,7 @@ export default function WorkspaceTab({ project, onUpdateProject, onNotify }) {
             onChange={(e) => setNoteText(e.target.value)}
             placeholder="Write your notes here..."
             rows={6}
-            className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border-subtle)]/40 bg-[var(--bg-primary)] text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none hover:border-[var(--border-subtle)] hover:bg-[var(--bg-card)] focus:border-[var(--accent-clay)] focus:bg-[var(--bg-card)] focus:ring-2 focus:ring-[var(--accent-clay)]/30 transition-all resize-none"
+            className="w-full px-3.5 py-2.5 rounded-xl border border-transparent bg-transparent focus:border-[var(--accent-clay)] focus:bg-[var(--bg-card)] focus:ring-2 focus:ring-[var(--accent-clay)]/30 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none transition-all resize-none"
             aria-label="Project notes"
           />
           <Button onClick={handleSaveNotes} variant="gradient" className="px-4 py-1.5">
