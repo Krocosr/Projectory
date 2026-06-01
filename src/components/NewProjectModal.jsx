@@ -55,6 +55,10 @@ export default function NewProjectModal({ isOpen, onClose, onSave }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.title.trim()) return;
+    if (form.title.trim().length > 100) {
+      alert('Project title must be 100 characters or fewer');
+      return;
+    }
     onSave({
       title: form.title,
       description: form.description,
