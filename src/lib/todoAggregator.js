@@ -1,11 +1,11 @@
 export const SORT_OPTIONS = [
   { value: 'default', label: 'Default' },
-  { value: 'priority-high', label: 'Priority \u2193' },
-  { value: 'priority-low', label: 'Priority \u2191' },
-  { value: 'deadline-asc', label: 'Deadline \u2191' },
-  { value: 'deadline-desc', label: 'Deadline \u2193' },
-  { value: 'alpha-asc', label: 'A \u2192 Z' },
-  { value: 'alpha-desc', label: 'Z \u2192 A' },
+  { value: 'priority-high', label: 'Priority ↓' },
+  { value: 'priority-low', label: 'Priority ↑' },
+  { value: 'deadline-asc', label: 'Deadline ↑' },
+  { value: 'deadline-desc', label: 'Deadline ↓' },
+  { value: 'alpha-asc', label: 'A → Z' },
+  { value: 'alpha-desc', label: 'Z → A' },
   { value: 'newest', label: 'Newest' },
   { value: 'oldest', label: 'Oldest' },
 ];
@@ -37,7 +37,9 @@ export function sortTodos(todos, sortBy = 'default') {
         if (dA) return -1;
         if (dB) return 1;
 
-        return (a.createdAt || '').localeCompare(b.createdAt || '');
+        const byCreated = (a.createdAt || '').localeCompare(b.createdAt || '');
+        if (byCreated !== 0) return byCreated;
+        return (a.order ?? Infinity) - (b.order ?? Infinity);
       });
       break;
 
@@ -56,7 +58,7 @@ export function sortTodos(todos, sortBy = 'default') {
         if (dA && dB) return dA - dB;
         if (dA) return -1;
         if (dB) return 1;
-        return 0;
+        return (a.order ?? Infinity) - (b.order ?? Infinity);
       });
       break;
 
@@ -67,12 +69,16 @@ export function sortTodos(todos, sortBy = 'default') {
         if (dA && dB) return dB - dA;
         if (dA) return -1;
         if (dB) return 1;
-        return 0;
+        return (a.order ?? Infinity) - (b.order ?? Infinity);
       });
       break;
 
     case 'project':
-      sorted.sort((a, b) => (a.projectTitle || '').localeCompare(b.projectTitle || ''));
+      sorted.sort((a, b) => {
+        const byTitle = (a.projectTitle || '').localeCompare(b.projectTitle || '');
+        if (byTitle !== 0) return byTitle;
+        return (a.order ?? Infinity) - (b.order ?? Infinity);
+      });
       break;
 
     case 'alpha-asc':
@@ -84,11 +90,19 @@ export function sortTodos(todos, sortBy = 'default') {
       break;
 
     case 'newest':
-      sorted.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      sorted.sort((a, b) => {
+        const byNewest = (b.createdAt || '').localeCompare(a.createdAt || '');
+        if (byNewest !== 0) return byNewest;
+        return (a.order ?? Infinity) - (b.order ?? Infinity);
+      });
       break;
 
     case 'oldest':
-      sorted.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+      sorted.sort((a, b) => {
+        const byOldest = (a.createdAt || '').localeCompare(b.createdAt || '');
+        if (byOldest !== 0) return byOldest;
+        return (a.order ?? Infinity) - (b.order ?? Infinity);
+      });
       break;
   }
 
@@ -111,6 +125,7 @@ export function getActiveTodos(projects, sortBy = 'priority') {
         details: todo.details || '',
         done: todo.done,
         createdAt: todo.createdAt,
+        order: todo.order,
         projectId: project.id,
         projectTitle: project.title,
         projectStatus: project.status,

@@ -14,6 +14,9 @@ import { getActiveTodos } from '@/lib/todoAggregator';
 import ActiveTodosSidebar from '@/components/ActiveTodosSidebar';
 import { DEFAULT_PROJECT_SORT } from '@/lib/constants';
 import { Button } from '@/components/ui';
+import { useConfirm } from '@/components/ConfirmModal';
+import { createAutoBackup } from '@/lib/storage';
+import { AUTO_BACKUP_INTERVAL_MS, POLL_INTERVAL_MS, STREAMER_KEY } from '@/lib/constants';
 
 // Lazy load only the heavy ProjectDetailView component
 // ProjectCard is small (~210 lines) and used frequently, so keep it eager for better UX
@@ -109,6 +112,8 @@ function DashboardContent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const DARK_MODE_KEY = 'projectory_dark_mode';
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isStreamerMode, setIsStreamerMode] = useState(false);
+  const confirm = useConfirm();
 
   // Initialize dark mode from localStorage + system preference
   useEffect(() => {
@@ -123,6 +128,33 @@ function DashboardContent() {
       document.documentElement.classList.toggle('dark', prefersDark);
     }
   }, []);
+
+  // Initialize streamer mode from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem(STREAMER_KEY);
+    if (stored === 'true') setIsStreamerMode(true);
+  }, []);
+
+  // Periodic auto-backup (pauses when tab is backgrounded)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (document.hidden) return;
+      if (projects.length > 0) {
+        createAutoBackup(projects);
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({ type: 'BACKUP_NOW' });
+        }
+      }
+    }, AUTO_BACKUP_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [projects]);
+
+  // Also backup on save
+  useEffect(() => {
+    if (projects.length > 0) {
+      createAutoBackup(projects);
+    }
+  }, [projects]);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -143,30 +175,42 @@ function DashboardContent() {
     return () => window.removeEventListener('keydown', handleKey);
   }, [selectedProject]);
 
-  // Load from localStorage once, with API recovery fallback
+  // Load from localStorage (instant), then check API for fresher data
   useEffect(() => {
+    let cancelled = false;
+
     const stored = loadProjects();
     if (stored && stored.length > 0) {
       setProjects(stored);
       setReady(true);
-      return;
     }
 
-    // localStorage is empty — try to recover from server-side API backup
+    // Always check API — ensures tool-written data (from OpenCode etc.) is picked up
     recoverFromApi().then((recovered) => {
+      if (cancelled) return;
       if (recovered && recovered.length > 0) {
-        setProjects(recovered);
-        addToast('Projects restored from server backup', 'info');
-      } else if (!localStorage.getItem(SEED_KEY)) {
-        localStorage.setItem(SEED_KEY, 'true');
-        setProjects(seedProjects);
-        const result = saveProjects(seedProjects);
-        if (!result.success) {
-          addToast(result.error || 'Failed to save initial data', 'error');
+        const enriched = recovered.map(recalculateProject);
+        setProjects(enriched);
+        saveProjects(enriched);
+        if (!stored || stored.length === 0) {
+          addToast('Projects restored from server backup', 'info');
+        }
+      } else if (!stored || stored.length === 0) {
+        if (!localStorage.getItem(SEED_KEY)) {
+          localStorage.setItem(SEED_KEY, 'true');
+          setProjects(seedProjects);
+          const result = saveProjects(seedProjects);
+          if (!result.success) {
+            addToast(result.error || 'Failed to save initial data', 'error');
+          }
         }
       }
-      setReady(true);
+      if (!stored || stored.length === 0) {
+        setReady(true);
+      }
     });
+
+    return () => { cancelled = true; };
   }, [addToast]);
 
   // Poll for external changes (from OpenCode tools) so they appear live in the browser
@@ -175,6 +219,7 @@ function DashboardContent() {
   useEffect(() => {
     if (!ready) return;
     const poll = async () => {
+      if (document.hidden) return;
       try {
         const res = await fetch('/api/projects/poll');
         if (!res.ok) return;
@@ -185,9 +230,9 @@ function DashboardContent() {
           if (!dataRes.ok) return;
           const { projects: serverProjects } = await dataRes.json();
           if (serverProjects && serverProjects.length > 0) {
-            setProjects(serverProjects);
-            const { saveProjects } = await import('@/lib/storage');
-            saveProjects(serverProjects);
+            const enriched = serverProjects.map(recalculateProject);
+            setProjects(enriched);
+            saveProjects(enriched);
           }
         }
         lastPollMtimeRef.current = modified;
@@ -195,9 +240,14 @@ function DashboardContent() {
         // Server may not be running - silently ignore
       }
     };
+    const handleVisibility = () => { if (!document.hidden) poll(); };
+    document.addEventListener('visibilitychange', handleVisibility);
     poll();
-    pollIntervalRef.current = setInterval(poll, 3000);
-    return () => { if (pollIntervalRef.current) clearInterval(pollIntervalRef.current); };
+    pollIntervalRef.current = setInterval(poll, POLL_INTERVAL_MS);
+    return () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [ready]);
 
   // Sync selected project when URL changes (handles browser back/forward)
@@ -313,6 +363,8 @@ function DashboardContent() {
   }, [router]);
 
   const handleDeleteProject = useCallback((id) => {
+    const snapshot = [...projects];
+    const projectToArchive = projects.find((p) => p.id === id);
     pendingNavigateHomeRef.current = true;
     setSelectedProject(null);
     setProjects((current) => {
@@ -332,10 +384,17 @@ function DashboardContent() {
       return updated;
     });
     router.push('/', { scroll: false });
-    addToast('Project archived');
-  }, [router, addToast, setSelectedProject]);
+    addToast(`"${projectToArchive?.title || 'Project'}" archived`, 'success', {
+      onUndo: () => {
+        setProjects(snapshot);
+        saveProjects(snapshot);
+      }
+    });
+  }, [router, addToast, setSelectedProject, projects]);
 
   const handleDeletePermanent = useCallback((id) => {
+    const snapshot = [...projects];
+    const deletedProject = projects.find((p) => p.id === id);
     pendingNavigateHomeRef.current = true;
     setSelectedProject(null);
     setProjects((current) => {
@@ -347,27 +406,40 @@ function DashboardContent() {
       return updated;
     });
     router.push('/', { scroll: false });
-    addToast('Project deleted permanently');
-  }, [router, addToast, setSelectedProject]);
+    addToast(`"${deletedProject?.title || 'Project'}" permanently deleted`, 'error', {
+      onUndo: () => {
+        setProjects(snapshot);
+        saveProjects(snapshot);
+        addToast('Project restored');
+      }
+    });
+  }, [router, addToast, setSelectedProject, projects]);
 
-  const handleCleanupArchive = useCallback(() => {
+  const handleCleanupArchive = useCallback(async () => {
     const archivedCount = projects.filter((p) => p.status === 'Archived').length;
     if (archivedCount === 0) {
       addToast('No archived projects to clean up', 'info');
       return;
     }
-    if (window.confirm(`Permanently delete all ${archivedCount} archived projects? This cannot be undone.`)) {
-      setProjects((current) => {
-        const updated = current.filter((p) => p.status !== 'Archived');
-        const result = saveProjects(updated);
-        if (!result.success) {
-          addToast(result.error || 'Failed to save changes', 'error');
-        }
-        return updated;
-      });
-      addToast(`Deleted ${archivedCount} archived projects`);
-    }
-  }, [projects, addToast]);
+    const ok = await confirm(`Permanently delete all ${archivedCount} archived projects? This cannot be undone.`);
+    if (!ok) return;
+    const snapshot = [...projects];
+    setProjects((current) => {
+      const updated = current.filter((p) => p.status !== 'Archived');
+      const result = saveProjects(updated);
+      if (!result.success) {
+        addToast(result.error || 'Failed to save changes', 'error');
+      }
+      return updated;
+    });
+    addToast(`Deleted ${archivedCount} archived projects`, 'success', {
+      onUndo: () => {
+        setProjects(snapshot);
+        saveProjects(snapshot);
+        addToast(`Restored ${archivedCount} archived projects`);
+      }
+    });
+  }, [projects, addToast, confirm]);
 
   const handleBack = useCallback(() => {
     pendingNavigateHomeRef.current = true;
@@ -401,7 +473,8 @@ function DashboardContent() {
       addToast(error, 'error');
       return;
     }
-    if (window.confirm(`Replace all projects with ${imported.length} projects from the backup?`)) {
+    const ok = await confirm(`Replace all projects with ${imported.length} projects from the backup?`);
+    if (ok) {
       setProjects(imported);
       const result = saveProjects(imported);
       addToast(result.success ? `Imported ${imported.length} projects` : (result.error || 'Import failed'), result.success ? 'info' : 'error');
@@ -416,7 +489,7 @@ function DashboardContent() {
       return merged;
     });
     addToast(`Merged ${imported.filter((p) => !projects.some((c) => c.id === p.id)).length} new projects`, 'info');
-  }, [addToast, projects]);
+  }, [addToast, projects, confirm]);
 
   const handleToggleSidebar = useCallback(() => {
     setIsSidebarOpen((prev) => !prev);
@@ -439,11 +512,49 @@ function DashboardContent() {
     });
   }, [addToast]);
 
+  const handleSidebarReorder = useCallback((reorderedTodos) => {
+    setProjects((current) => {
+      const orderMap = {};
+      reorderedTodos.forEach((todo, index) => {
+        if (!orderMap[todo.projectId]) {
+          orderMap[todo.projectId] = [];
+        }
+        orderMap[todo.projectId].push({ id: todo.id, order: index });
+      });
+      const updated = current.map((project) => {
+        if (!orderMap[project.id]) return project;
+        const projectOrders = orderMap[project.id];
+        const todoOrderMap = new Map(projectOrders.map(o => [o.id, o.order]));
+        const newTodos = (project.todos || []).map((todo) => {
+          if (todoOrderMap.has(todo.id)) {
+            return { ...todo, order: todoOrderMap.get(todo.id) };
+          }
+          return todo;
+        });
+        return { ...project, todos: newTodos };
+      });
+      const result = saveProjects(updated);
+      if (!result.success) {
+        addToast(result.error || 'Failed to save todo reorder', 'error');
+      }
+      return updated;
+    });
+  }, [addToast]);
+
   const handleSidebarNavigate = useCallback((projectId) => {
     setIsSidebarOpen(false);
     const project = projects.find((p) => p.id === projectId);
     if (project) handleCardClick(project);
   }, [projects, handleCardClick]);
+
+  const handleToggleStreamerMode = useCallback(() => {
+    setIsStreamerMode((prev) => {
+      const next = !prev;
+      localStorage.setItem(STREAMER_KEY, String(next));
+      addToast(next ? 'Streamer mode on - sensitive content hidden' : 'Streamer mode off');
+      return next;
+    });
+  }, [addToast]);
 
   const handleToggleDarkMode = useCallback(() => {
     setIsDarkMode((prev) => {
@@ -452,7 +563,7 @@ function DashboardContent() {
       document.documentElement.classList.toggle('dark', next);
       return next;
     });
-  }, []);
+  }, [addToast]);
 
   const handleProjectDragEnd = useCallback((result) => {
     if (!result.destination) return;
@@ -471,7 +582,7 @@ function DashboardContent() {
   }, [addToast]);
 
   return (
-    <div className="min-h-screen flex overflow-hidden">
+    <div className={`min-h-screen flex overflow-hidden${isStreamerMode ? ' streamer-mode' : ''}`}>
       <NewProjectButton onClick={() => setIsNewModalOpen(true)} />
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
@@ -498,6 +609,8 @@ function DashboardContent() {
                     onNotify={addToast}
                     isDarkMode={isDarkMode}
                     onToggleDarkMode={handleToggleDarkMode}
+                    isStreamerMode={isStreamerMode}
+                    onToggleStreamerMode={handleToggleStreamerMode}
                     onToggleSidebar={handleToggleSidebar}
                     activeTodosCount={aggregatedTodos.length}
                   />
@@ -520,6 +633,8 @@ function DashboardContent() {
                   onCleanupArchive={handleCleanupArchive}
                   projectSortBy={projectSortBy}
                   onProjectSortChange={setProjectSortBy}
+                  isStreamerMode={isStreamerMode}
+                  onToggleStreamerMode={handleToggleStreamerMode}
                 />
 
                 {!ready ? (
@@ -564,6 +679,7 @@ function DashboardContent() {
                                       onUpdateProject={handleUpdateProject}
                                       onDeleteProject={handleDeleteProject}
                                       onDeletePermanent={handleDeletePermanent}
+                                      onNotify={addToast}
                                     />
                                   </ErrorBoundary>
                                 </div>
@@ -603,6 +719,7 @@ function DashboardContent() {
         todos={aggregatedTodos}
         onToggleTodo={handleToggleTodoFromSidebar}
         onNavigateToProject={handleSidebarNavigate}
+        onReorderTodos={handleSidebarReorder}
       />
 
       <NewProjectModal
