@@ -1,7 +1,7 @@
 'use client';
 import { useState, useMemo, useEffect, useCallback, useRef, useDeferredValue, Suspense, lazy } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import DashboardHeader from '@/components/DashboardHeader';
 import NewProjectModal from '@/components/NewProjectModal';
@@ -20,12 +20,20 @@ import { AUTO_BACKUP_INTERVAL_MS, POLL_INTERVAL_MS, STREAMER_KEY } from '@/lib/c
 
 // Lazy load only the heavy ProjectDetailView component
 // ProjectCard is small (~210 lines) and used frequently, so keep it eager for better UX
-const ProjectDetailView = lazy(() => 
-  import('@/components/ProjectDetailView').catch(err => {
-    console.error('Failed to load ProjectDetailView:', err);
-    return { default: () => <div className="bg-[var(--bg-card)] rounded-2xl p-6 border border-red-500/20 min-h-[400px] flex items-center justify-center text-sm text-red-500">Failed to load project details</div> };
-  })
-);
+const projectDetailViewImport = import('@/components/ProjectDetailView').catch(err => {
+  console.error('Failed to load ProjectDetailView:', err);
+  return { default: () => <div className="bg-[var(--bg-card)] rounded-2xl p-6 border border-red-500/20 min-h-[400px] flex items-center justify-center text-sm text-red-500">Failed to load project details</div> };
+});
+const ProjectDetailView = lazy(() => projectDetailViewImport);
+
+// If the URL already has a ?project= param, kick off the chunk download immediately
+// so Suspense resolves before or during first paint (no spinner flash)
+if (typeof window !== 'undefined') {
+  const _sp = new URLSearchParams(window.location.search);
+  if (_sp.get('project')) {
+    projectDetailViewImport.catch(() => {});
+  }
+}
 
 function NewProjectButton({ onClick }) {
   return (
@@ -99,13 +107,30 @@ function CardSkeleton() {
 function DashboardContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [projects, setProjects] = useState([]);
+  // Eagerly initialize projects + selectedProject from localStorage so the correct
+  // view renders on the very first paint — no dashboard flash when opening a project URL.
+  const [projects, setProjects] = useState(() => {
+    if (typeof window === 'undefined') return [];
+    return loadProjects() || [];
+  });
   const [activeFilter, setActiveFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const deferredSearch = useDeferredValue(searchQuery);
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
-  const [selectedProject, setSelectedProject] = useState(null);
-  const [ready, setReady] = useState(false);
+  const [selectedProject, setSelectedProject] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    const param = new URLSearchParams(window.location.search).get('project');
+    if (!param) return null;
+    const stored = loadProjects();
+    if (!stored) return null;
+    return stored.find((p) => String(p.id) === param) || null;
+  });
+  const [ready, setReady] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    // If localStorage has data we can show the UI immediately
+    const stored = loadProjects();
+    return !!(stored && stored.length > 0);
+  });
   const { toasts, addToast, dismissToast } = useToast();
   const lastFocusedCardIdRef = useRef(null);
   const pendingNavigateHomeRef = useRef(false);
@@ -175,15 +200,11 @@ function DashboardContent() {
     return () => window.removeEventListener('keydown', handleKey);
   }, [selectedProject]);
 
-  // Load from localStorage (instant), then check API for fresher data
+  // State is eagerly initialized from localStorage in useState() above.
+  // Just check API for fresher / server-written data.
   useEffect(() => {
     let cancelled = false;
-
-    const stored = loadProjects();
-    if (stored && stored.length > 0) {
-      setProjects(stored);
-      setReady(true);
-    }
+    const hadLocalData = projects.length > 0;
 
     // Always check API — ensures tool-written data (from OpenCode etc.) is picked up
     recoverFromApi().then((recovered) => {
@@ -192,10 +213,10 @@ function DashboardContent() {
         const enriched = recovered.map(recalculateProject);
         setProjects(enriched);
         saveProjects(enriched);
-        if (!stored || stored.length === 0) {
+        if (!hadLocalData) {
           addToast('Projects restored from server backup', 'info');
         }
-      } else if (!stored || stored.length === 0) {
+      } else if (!hadLocalData) {
         if (!localStorage.getItem(SEED_KEY)) {
           localStorage.setItem(SEED_KEY, 'true');
           setProjects(seedProjects);
@@ -205,12 +226,13 @@ function DashboardContent() {
           }
         }
       }
-      if (!stored || stored.length === 0) {
+      if (!hadLocalData) {
         setReady(true);
       }
     });
 
     return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addToast]);
 
   // Poll for external changes (from OpenCode tools) so they appear live in the browser
@@ -250,16 +272,17 @@ function DashboardContent() {
     };
   }, [ready]);
 
-  // Sync selected project when URL changes (handles browser back/forward)
+  // Sync selected project when URL changes (handles browser back/forward + project data updates)
+  // selectedProject is eagerly initialized from localStorage in useState, so no early-return on !ready.
   const projectParam = searchParams.get('project');
   useEffect(() => {
-    if (!ready) return;
     if (projectParam) {
       pendingNavigateHomeRef.current = false;
       const found = projects.find((p) => String(p.id) === projectParam);
       if (found) {
         setSelectedProject(found);
-      } else {
+      } else if (ready) {
+        // Only redirect to home once we're sure the project doesn't exist
         setSelectedProject(null);
         router.push('/', { scroll: false });
       }
@@ -560,34 +583,37 @@ function DashboardContent() {
       <div className="flex-1 min-w-0 transition-all duration-300 overflow-y-auto" style={{ marginRight: isSidebarOpen ? '380px' : '0' }}>
         <div className="max-w-6xl mx-auto px-6 py-10">
           {selectedProject ? (
-            <motion.div
-              key={`detail-${selectedProject.id}`}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.15 }}
-            >
-              <ErrorBoundary 
-                context="ProjectDetailView"
-                errorMessage="Failed to load project details. Try going back to the dashboard."
-                onReset={handleBack}
-              >
-                <Suspense fallback={<div className="min-h-[60vh] flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-[var(--accent-clay)] border-t-transparent animate-spin" /></div>}>
-                  <ProjectDetailView
-                    project={selectedProject}
-                    onBack={handleBack}
-                    onUpdateProject={handleUpdateProject}
-                    onDeleteProject={handleDeleteProject}
-                    onNotify={addToast}
-                    isDarkMode={isDarkMode}
-                    onToggleDarkMode={handleToggleDarkMode}
-                    isStreamerMode={isStreamerMode}
-                    onToggleStreamerMode={handleToggleStreamerMode}
-                    onToggleSidebar={handleToggleSidebar}
-                    activeTodosCount={aggregatedTodos.length}
-                  />
-                </Suspense>
-              </ErrorBoundary>
-            </motion.div>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={`detail-${selectedProject.id}`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  <ErrorBoundary 
+                    context="ProjectDetailView"
+                    errorMessage="Failed to load project details. Try going back to the dashboard."
+                    onReset={handleBack}
+                  >
+                    <Suspense fallback={<div className="min-h-[60vh] flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-[var(--accent-clay)] border-t-transparent animate-spin" /></div>}>
+                      <ProjectDetailView
+                        project={selectedProject}
+                        onBack={handleBack}
+                        onUpdateProject={handleUpdateProject}
+                        onDeleteProject={handleDeleteProject}
+                        onNotify={addToast}
+                        isDarkMode={isDarkMode}
+                        onToggleDarkMode={handleToggleDarkMode}
+                        isStreamerMode={isStreamerMode}
+                        onToggleStreamerMode={handleToggleStreamerMode}
+                        onToggleSidebar={handleToggleSidebar}
+                        activeTodosCount={aggregatedTodos.length}
+                      />
+                    </Suspense>
+                  </ErrorBoundary>
+                </motion.div>
+              </AnimatePresence>
           ) : (<>
                 <DashboardHeader
                   activeFilter={activeFilter}
@@ -612,73 +638,82 @@ function DashboardContent() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 auto-rows-fr">
                     {[...Array(4)].map((_, i) => <CardSkeleton key={i} />)}
                   </div>
-                ) : filteredProjects.length > 0 ? (
-                  <DragDropContext onDragEnd={handleProjectDragEnd}>
-                    <Droppable droppableId="projects">
-                      {(provided, snapshot) => (
-                        <div
-                          ref={provided.innerRef}
-                          {...provided.droppableProps}
-                          className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 auto-rows-fr transition-colors ${
-                            snapshot.isDraggingOver ? 'bg-[var(--accent-clay)]/5 rounded-2xl p-2' : ''
-                          }`}
-                        >
-                          {filteredProjects.map((project, index) => (
-                            <Draggable
-                              key={String(project.id)}
-                              draggableId={String(project.id)}
-                              index={index}
-                            >
-                              {(provided, snapshot) => (
-                                <div
-                                  ref={provided.innerRef}
-                                  {...provided.draggableProps}
-                                  {...provided.dragHandleProps}
-                                  style={provided.draggableProps.style}
-                                  className={`transition-shadow ${
-                                    snapshot.isDragging ? 'shadow-2xl ring-2 ring-[var(--accent-clay)]/40 rounded-2xl scale-105' : ''
-                                  }`}
-                                >
-                                  <ErrorBoundary 
-                                    key={project.id}
-                                    context={`ProjectCard-${project.id}`}
-                                    errorMessage="Failed to load this project card."
-                                  >
-                                    <ProjectCard
-                                      project={project}
-                                      onClick={handleCardClick}
-                                      onUpdateProject={handleUpdateProject}
-                                      onDeleteProject={handleDeleteProject}
-                                      onDeletePermanent={handleDeletePermanent}
-                                      onNotify={addToast}
-                                    />
-                                  </ErrorBoundary>
-                                </div>
-                              )}
-                            </Draggable>
-                          ))}
-                          {provided.placeholder}
-                          {activeFilter === 'All' && !searchQuery && (
-                            <NewProjectCard onClick={() => setIsNewModalOpen(true)} />
-                          )}
-                        </div>
-                      )}
-                    </Droppable>
-                  </DragDropContext>
-                ) : projects.length === 0 ? (
-                  <EmptyPortfolio onNewProject={() => setIsNewModalOpen(true)} />
                 ) : (
-                  <div className="text-center py-20">
-                    <p className="text-sm text-[var(--text-muted)]">
-                      {searchQuery ? 'No projects match your search' : `No ${activeFilter.toLowerCase()} projects`}
-                    </p>
-                    <button
-                      onClick={() => { setActiveFilter('All'); setSearchQuery(''); }}
-                      className="mt-2 text-sm text-[var(--accent-clay)] hover:text-[var(--text-primary)] transition-colors"
-                    >
-                      Show all projects
-                    </button>
-                  </div>
+                  <motion.div
+                    key="dashboard-content"
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.15 }}
+                  >
+                    {filteredProjects.length > 0 ? (
+                      <DragDropContext onDragEnd={handleProjectDragEnd}>
+                        <Droppable droppableId="projects">
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.droppableProps}
+                              className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 auto-rows-fr transition-colors ${
+                                snapshot.isDraggingOver ? 'bg-[var(--accent-clay)]/5 rounded-2xl p-2' : ''
+                              }`}
+                            >
+                              {filteredProjects.map((project, index) => (
+                                <Draggable
+                                  key={String(project.id)}
+                                  draggableId={String(project.id)}
+                                  index={index}
+                                >
+                                  {(provided, snapshot) => (
+                                    <div
+                                      ref={provided.innerRef}
+                                      {...provided.draggableProps}
+                                      {...provided.dragHandleProps}
+                                      style={provided.draggableProps.style}
+                                      className={`transition-shadow ${
+                                        snapshot.isDragging ? 'shadow-2xl ring-2 ring-[var(--accent-clay)]/40 rounded-2xl scale-105' : ''
+                                      }`}
+                                    >
+                                      <ErrorBoundary 
+                                        key={project.id}
+                                        context={`ProjectCard-${project.id}`}
+                                        errorMessage="Failed to load this project card."
+                                      >
+                                        <ProjectCard
+                                          project={project}
+                                          onClick={handleCardClick}
+                                          onUpdateProject={handleUpdateProject}
+                                          onDeleteProject={handleDeleteProject}
+                                          onDeletePermanent={handleDeletePermanent}
+                                          onNotify={addToast}
+                                        />
+                                      </ErrorBoundary>
+                                    </div>
+                                  )}
+                                </Draggable>
+                              ))}
+                              {provided.placeholder}
+                              {activeFilter === 'All' && !searchQuery && (
+                                <NewProjectCard onClick={() => setIsNewModalOpen(true)} />
+                              )}
+                            </div>
+                          )}
+                        </Droppable>
+                      </DragDropContext>
+                    ) : projects.length === 0 ? (
+                      <EmptyPortfolio onNewProject={() => setIsNewModalOpen(true)} />
+                    ) : (
+                      <div className="text-center py-20">
+                        <p className="text-sm text-[var(--text-muted)]">
+                          {searchQuery ? 'No projects match your search' : `No ${activeFilter.toLowerCase()} projects`}
+                        </p>
+                        <button
+                          onClick={() => { setActiveFilter('All'); setSearchQuery(''); }}
+                          className="mt-2 text-sm text-[var(--accent-clay)] hover:text-[var(--text-primary)] transition-colors"
+                        >
+                          Show all projects
+                        </button>
+                      </div>
+                    )}
+                  </motion.div>
                 )}
               </>
             )}
