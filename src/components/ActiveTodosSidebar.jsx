@@ -1,7 +1,8 @@
 'use client';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import PropTypes from 'prop-types';
 import { PRIORITY_STYLES } from '@/lib/constants';
 import { formatDeadlineForDisplay } from '@/lib/dateUtils';
@@ -91,15 +92,22 @@ export default function ActiveTodosSidebar({ isOpen, todos, onToggleTodo, onNavi
   // Sort filtered todos using shared sort function
   const sortedTodos = useMemo(() => sortTodos(filteredTodos, sortBy), [filteredTodos, sortBy]);
 
-  // Display todos (can be reordered via DND)
+  const scrollRef = useRef(null);
   const [displayTodos, setDisplayTodos] = useState([]);
 
-  // Update display todos when sorted todos change
   useEffect(() => {
     setDisplayTodos([...sortedTodos]);
   }, [sortedTodos]);
 
-  const handleDragEnd = (result) => {
+  const virtualizer = useVirtualizer({
+    count: displayTodos.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 72,
+    measureElement: (el) => el.getBoundingClientRect().height,
+    overscan: 8,
+  });
+
+  const handleDragEnd = useCallback((result) => {
     if (!result.destination) return;
     if (result.source.index === result.destination.index) return;
 
@@ -107,7 +115,7 @@ export default function ActiveTodosSidebar({ isOpen, todos, onToggleTodo, onNavi
     const [removed] = reordered.splice(result.source.index, 1);
     reordered.splice(result.destination.index, 0, removed);
     setDisplayTodos(reordered);
-  };
+  }, [displayTodos]);
 
   const handleSortChange = (newSort) => {
     setSortBy(newSort);
@@ -120,8 +128,8 @@ export default function ActiveTodosSidebar({ isOpen, todos, onToggleTodo, onNavi
           initial={{ width: 0, opacity: 0 }}
           animate={{ width: 380, opacity: 1 }}
           exit={{ width: 0, opacity: 0 }}
-          transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-          className="shrink-0 bg-[var(--bg-primary)] border-l border-[var(--border-subtle)] shadow-2xl flex flex-col overflow-hidden h-screen fixed right-0 top-0"
+          transition={{ type: 'tween', duration: 0.2 }}
+          className="shrink-0 bg-[var(--bg-primary)] border-l border-[var(--border-subtle)] flex flex-col overflow-hidden h-screen fixed right-0 top-0"
           role="complementary"
           aria-label="Active todos sidebar"
         >
@@ -159,7 +167,7 @@ export default function ActiveTodosSidebar({ isOpen, todos, onToggleTodo, onNavi
             />
           </div>
 
-          <div className="flex-1 overflow-y-auto overscroll-contain" onWheel={(e) => e.stopPropagation()}>
+          <div className="flex-1 overflow-hidden">
             {displayTodos.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center px-8 py-16">
                 <div className="w-12 h-12 rounded-xl bg-[var(--border-subtle)] flex items-center justify-center mb-3">
@@ -172,37 +180,69 @@ export default function ActiveTodosSidebar({ isOpen, todos, onToggleTodo, onNavi
               </div>
             ) : (
               <DragDropContext onDragEnd={handleDragEnd}>
-                <Droppable droppableId="sidebar-todos">
+                <Droppable droppableId="sidebar-todos" mode="virtual" renderClone={(provided, snapshot, rubric) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    {...provided.dragHandleProps}
+                    style={provided.draggableProps.style}
+                    className="shadow-lg ring-2 ring-[var(--accent-clay)]/30 bg-[var(--bg-card)] rounded-lg"
+                  >
+                    <TodoItem
+                      todo={displayTodos[rubric.source.index]}
+                      onToggle={onToggleTodo}
+                      onNavigate={onNavigateToProject}
+                      dragHandleProps={{}}
+                    />
+                  </div>
+                )}>
                   {(provided, snapshot) => (
                     <div
-                      ref={provided.innerRef}
+                      ref={(node) => {
+                        provided.innerRef(node);
+                        scrollRef.current = node;
+                      }}
                       {...provided.droppableProps}
-                      className={`transition-colors ${snapshot.isDraggingOver ? 'bg-[var(--accent-clay)]/5' : ''}`}
+                      className={`transition-colors h-full ${snapshot.isDraggingOver ? 'bg-[var(--accent-clay)]/5' : ''}`}
+                      style={{ overflowY: 'auto' }}
                     >
-                      {displayTodos.map((todo, index) => (
-                        <Draggable 
-                          key={`${todo.projectId}-${todo.id}`} 
-                          draggableId={`${todo.projectId}-${todo.id}`} 
-                          index={index}
-                        >
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              style={provided.draggableProps.style}
-                              className={`transition-shadow ${snapshot.isDragging ? 'shadow-lg ring-2 ring-[var(--accent-clay)]/30 bg-[var(--bg-card)] rounded-lg' : ''}`}
+                      <div style={{ position: 'relative', height: `${virtualizer.getTotalSize()}px` }}>
+                        {virtualizer.getVirtualItems().map((virtualItem) => {
+                          const todo = displayTodos[virtualItem.index];
+                          return (
+                            <Draggable
+                              key={`${todo.projectId}-${todo.id}`}
+                              draggableId={`${todo.projectId}-${todo.id}`}
+                              index={virtualItem.index}
                             >
-                              <TodoItem
-                                todo={todo}
-                                onToggle={onToggleTodo}
-                                onNavigate={onNavigateToProject}
-                                dragHandleProps={provided.dragHandleProps}
-                              />
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  data-index={virtualItem.index}
+                                  style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: '100%',
+                                    transform: `translateY(${virtualItem.start}px) ${(provided.draggableProps.style?.transform || '')}`.trim(),
+                                    transition: provided.draggableProps.style?.transition || '',
+                                  }}
+                                  className={`transition-shadow ${snapshot.isDragging ? 'shadow-lg ring-2 ring-[var(--accent-clay)]/30 bg-[var(--bg-card)] rounded-lg' : ''}`}
+                                >
+                                  <TodoItem
+                                    todo={todo}
+                                    onToggle={onToggleTodo}
+                                    onNavigate={onNavigateToProject}
+                                    dragHandleProps={provided.dragHandleProps}
+                                  />
+                                </div>
+                              )}
+                            </Draggable>
+                          );
+                        })}
+                        {provided.placeholder}
+                      </div>
                     </div>
                   )}
                 </Droppable>

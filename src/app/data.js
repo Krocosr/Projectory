@@ -46,7 +46,7 @@ export function createProject(form) {
     title: form.title.trim(),
     id: Date.now(),
     progress: 0,
-    lastWorked: 'just now',
+    lastWorked: new Date().toISOString(),
     todoCount: 0,
     nextStep: 'Define first action',
     currentFocus: 'Getting started',

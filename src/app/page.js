@@ -2,7 +2,8 @@
 import { useState, useMemo, useEffect, useCallback, useRef, useDeferredValue, Suspense, lazy } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { DndContext, PointerSensor, useSensor, useSensors, closestCorners } from '@dnd-kit/core';
+import { SortableContext, useSortable, rectSortingStrategy, arrayMove } from '@dnd-kit/sortable';
 import DashboardHeader from '@/components/DashboardHeader';
 import NewProjectModal from '@/components/NewProjectModal';
 import ToastContainer, { useToast } from '@/components/Toast';
@@ -10,6 +11,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import ProjectCard from '@/components/ProjectCard';
 import { seedProjects, SEED_KEY, createProject } from '@/app/data';
 import { loadProjects, saveProjects, recoverFromApi, exportToFile, importFromFile, recalculateProject } from '@/lib/storage';
+import { migrateFromLocalStorage } from '@/lib/db';
 import { getActiveTodos } from '@/lib/todoAggregator';
 import ActiveTodosSidebar from '@/components/ActiveTodosSidebar';
 import { DEFAULT_PROJECT_SORT } from '@/lib/constants';
@@ -93,6 +95,45 @@ function EmptyPortfolio({ onNewProject }) {
   );
 }
 
+function SortableProjectCard({ project, onClick, onUpdateProject, onDeleteProject, onDeletePermanent, onNotify }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: String(project.id) });
+  const nodeRef = useRef(null);
+
+  const style = transform ? {
+    transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+    transition,
+  } : { transition };
+
+  return (
+    <div
+      ref={(node) => {
+        setNodeRef(node);
+        nodeRef.current = node;
+      }}
+      style={style}
+      {...attributes}
+      className={`transition-shadow ${isDragging ? 'shadow-2xl ring-2 ring-[var(--accent-clay)]/40 rounded-2xl scale-105 z-50' : ''}`}
+    >
+      <ErrorBoundary
+        key={project.id}
+        context={`ProjectCard-${project.id}`}
+        errorMessage="Failed to load this project card."
+      >
+        <ProjectCard
+          project={project}
+          onClick={onClick}
+          onUpdateProject={onUpdateProject}
+          onDeleteProject={onDeleteProject}
+          onDeletePermanent={onDeletePermanent}
+          onNotify={onNotify}
+          dragHandleProps={listeners}
+          isDragging={isDragging}
+        />
+      </ErrorBoundary>
+    </div>
+  );
+}
+
 function CardSkeleton() {
   return (
     <div className="bg-[var(--bg-card)] rounded-2xl p-6 border border-[var(--border-subtle)] min-h-[220px] animate-pulse">
@@ -100,6 +141,60 @@ function CardSkeleton() {
       <div className="h-6 bg-[var(--border-subtle)] rounded w-2/3 mb-2" />
       <div className="h-4 bg-[var(--border-subtle)] rounded w-full mb-auto" />
       <div className="mt-8 h-1.5 bg-[var(--border-subtle)] rounded-full" />
+    </div>
+  );
+}
+
+function ProjectDetailSkeleton() {
+  return (
+    <div className="animate-pulse">
+      {/* Back button */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="h-4 bg-[var(--border-subtle)] rounded w-32" />
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-[var(--border-subtle)] rounded-lg" />
+          <div className="w-8 h-8 bg-[var(--border-subtle)] rounded-lg" />
+          <div className="w-8 h-8 bg-[var(--border-subtle)] rounded-lg" />
+        </div>
+      </div>
+
+      {/* Title and status */}
+      <div className="flex items-start justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-3 h-3 rounded-full bg-[var(--border-subtle)]" />
+          <div>
+            <div className="h-8 bg-[var(--border-subtle)] rounded w-64 mb-2" />
+            <div className="h-4 bg-[var(--border-subtle)] rounded w-48" />
+          </div>
+        </div>
+      </div>
+
+      {/* Resume card */}
+      <div className="p-5 mb-6 rounded-xl border border-[var(--border-subtle)] bg-gradient-to-r from-[var(--accent-clay)]/5 to-transparent">
+        <div className="flex items-start gap-4">
+          <div className="w-10 h-10 rounded-xl bg-[var(--border-subtle)]" />
+          <div className="flex-1">
+            <div className="h-5 bg-[var(--border-subtle)] rounded w-32 mb-3" />
+            <div className="h-3 bg-[var(--border-subtle)] rounded w-full mb-2" />
+            <div className="h-3 bg-[var(--border-subtle)] rounded w-3/4 mb-3" />
+            <div className="h-2 bg-[var(--border-subtle)] rounded-full w-full" />
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 mb-6 border-b border-[var(--border-subtle)]">
+        {[...Array(6)].map((_, i) => (
+          <div key={i} className="h-9 bg-[var(--border-subtle)] rounded-t w-20" />
+        ))}
+      </div>
+
+      {/* Content area */}
+      <div className="space-y-4">
+        <div className="h-4 bg-[var(--border-subtle)] rounded w-full" />
+        <div className="h-4 bg-[var(--border-subtle)] rounded w-5/6" />
+        <div className="h-4 bg-[var(--border-subtle)] rounded w-4/6" />
+      </div>
     </div>
   );
 }
@@ -133,7 +228,6 @@ function DashboardContent() {
   });
   const { toasts, addToast, dismissToast } = useToast();
   const lastFocusedCardIdRef = useRef(null);
-  const pendingNavigateHomeRef = useRef(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const DARK_MODE_KEY = 'projectory_dark_mode';
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -213,6 +307,14 @@ function DashboardContent() {
         const enriched = recovered.map(recalculateProject);
         setProjects(enriched);
         saveProjects(enriched);
+
+        // If URL has a project param, pre-select it atomically to avoid flash
+        const urlParam = new URLSearchParams(window.location.search).get('project');
+        if (urlParam) {
+          const found = enriched.find((p) => String(p.id) === urlParam);
+          if (found) setSelectedProject(found);
+        }
+
         if (!hadLocalData) {
           addToast('Projects restored from server backup', 'info');
         }
@@ -235,6 +337,16 @@ function DashboardContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addToast]);
 
+  // Sync IndexedDB: migrate from localStorage on first launch, then keep in sync
+  useEffect(() => {
+    migrateFromLocalStorage().then((migrated) => {
+      if (!migrated && projects.length > 0) {
+        saveProjects(projects);
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Poll for external changes (from OpenCode tools) so they appear live in the browser
   const lastPollMtimeRef = useRef(null);
   const pollIntervalRef = useRef(null);
@@ -255,6 +367,11 @@ function DashboardContent() {
             const enriched = serverProjects.map(recalculateProject);
             setProjects(enriched);
             saveProjects(enriched);
+            // Sync selectedProject if it's the currently viewed one
+            if (selectedProject) {
+              const updated = enriched.find(p => p.id === selectedProject.id);
+              if (updated) setSelectedProject(updated);
+            }
           }
         }
         lastPollMtimeRef.current = modified;
@@ -274,23 +391,34 @@ function DashboardContent() {
 
   // Sync selected project when URL changes (handles browser back/forward + project data updates)
   // selectedProject is eagerly initialized from localStorage in useState, so no early-return on !ready.
+  // Always reads window.location.search directly — useSearchParams may be stale after popstate.
   const projectParam = searchParams.get('project');
   useEffect(() => {
-    if (projectParam) {
-      pendingNavigateHomeRef.current = false;
-      const found = projects.find((p) => String(p.id) === projectParam);
+    const actualProjectId = new URLSearchParams(window.location.search).get('project') || null;
+    const currentId = selectedProject ? String(selectedProject.id) : null;
+
+    if (actualProjectId === currentId) return;
+
+    if (actualProjectId) {
+      const found = projects.find((p) => String(p.id) === actualProjectId);
       if (found) {
         setSelectedProject(found);
       } else if (ready) {
-        // Only redirect to home once we're sure the project doesn't exist
         setSelectedProject(null);
         router.push('/', { scroll: false });
       }
     } else {
-      pendingNavigateHomeRef.current = false;
       setSelectedProject(null);
     }
   }, [projectParam, ready, projects, router]);
+
+  // Keep refs that popstate handler can use without stale closures
+  const selectedProjectRef = useRef(selectedProject);
+  selectedProjectRef.current = selectedProject;
+  const projectsRef = useRef(projects);
+  projectsRef.current = projects;
+
+
 
   const [projectSortBy, setProjectSortBy] = useState(DEFAULT_PROJECT_SORT);
 
@@ -379,16 +507,13 @@ function DashboardContent() {
 
   const handleCardClick = useCallback((project) => {
     if (!project) return;
-    pendingNavigateHomeRef.current = false;
     lastFocusedCardIdRef.current = project.id;
-    setSelectedProject(project);
     router.push(`/?project=${project.id}`, { scroll: false });
   }, [router]);
 
   const handleDeleteProject = useCallback((id) => {
     const snapshot = [...projects];
     const projectToArchive = projects.find((p) => p.id === id);
-    pendingNavigateHomeRef.current = true;
     setSelectedProject(null);
     setProjects((current) => {
       const updated = current.map((p) => {
@@ -418,7 +543,6 @@ function DashboardContent() {
   const handleDeletePermanent = useCallback((id) => {
     const snapshot = [...projects];
     const deletedProject = projects.find((p) => p.id === id);
-    pendingNavigateHomeRef.current = true;
     setSelectedProject(null);
     setProjects((current) => {
       const updated = current.filter((p) => p.id !== id);
@@ -465,9 +589,13 @@ function DashboardContent() {
   }, [projects, addToast, confirm]);
 
   const handleBack = useCallback(() => {
-    pendingNavigateHomeRef.current = true;
     setSelectedProject(null);
-    router.push('/', { scroll: false });
+    router.replace('/', { scroll: false });
+    
+    // Defer scroll until animation completes
+    setTimeout(() => {
+      scrollContainerRef.current?.scrollTo({ top: 0 });
+    }, 150);
     
     // Restore focus to the last focused card after navigation
     const focusedId = lastFocusedCardIdRef.current;
@@ -559,14 +687,33 @@ function DashboardContent() {
     });
   }, [addToast]);
 
-  const handleProjectDragEnd = useCallback((result) => {
-    if (!result.destination) return;
-    if (result.source.index === result.destination.index) return;
+  const [isProjectDragging, setIsProjectDragging] = useState(false);
+  const scrollContainerRef = useRef(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    })
+  );
+
+  const handleProjectDragStart = useCallback(() => {
+    setIsProjectDragging(true);
+  }, []);
+
+  const handleProjectDragEnd = useCallback((event) => {
+    setIsProjectDragging(false);
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    // Switch to unsorted mode when user manually reorders
+    setProjectSortBy('unsorted');
 
     setProjects((current) => {
-      const reordered = [...current];
-      const [removed] = reordered.splice(result.source.index, 1);
-      reordered.splice(result.destination.index, 0, removed);
+      const oldIndex = current.findIndex((p) => String(p.id) === active.id);
+      const newIndex = current.findIndex((p) => String(p.id) === over.id);
+      if (oldIndex === -1 || newIndex === -1) return current;
+
+      const reordered = arrayMove(current, oldIndex, newIndex);
       const saveResult = saveProjects(reordered);
       if (!saveResult.success) {
         addToast(saveResult.error || 'Failed to save reorder', 'error');
@@ -580,41 +727,47 @@ function DashboardContent() {
       <NewProjectButton onClick={() => setIsNewModalOpen(true)} />
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
-      <div className="flex-1 min-w-0 transition-all duration-300 overflow-y-auto" style={{ marginRight: isSidebarOpen ? '380px' : '0' }}>
+      <div ref={scrollContainerRef} className={`flex-1 min-w-0 transition-all duration-300 ${isProjectDragging ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden'}`} style={{ marginRight: isSidebarOpen ? '380px' : '0' }}>
         <div className="max-w-6xl mx-auto px-6 py-10">
-          {selectedProject ? (
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={`detail-${selectedProject.id}`}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.15 }}
+          <AnimatePresence initial={false}>
+            {selectedProject ? (
+              <motion.div
+                key={`detail-${selectedProject.id}`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.12 }}
+              >
+                <ErrorBoundary
+                  context="ProjectDetailView"
+                  errorMessage="Failed to load project details. Try going back to the dashboard."
+                  onReset={handleBack}
                 >
-                  <ErrorBoundary 
-                    context="ProjectDetailView"
-                    errorMessage="Failed to load project details. Try going back to the dashboard."
-                    onReset={handleBack}
-                  >
-                    <Suspense fallback={<div className="min-h-[60vh] flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-[var(--accent-clay)] border-t-transparent animate-spin" /></div>}>
-                      <ProjectDetailView
-                        project={selectedProject}
-                        onBack={handleBack}
-                        onUpdateProject={handleUpdateProject}
-                        onDeleteProject={handleDeleteProject}
-                        onNotify={addToast}
-                        isDarkMode={isDarkMode}
-                        onToggleDarkMode={handleToggleDarkMode}
-                        isStreamerMode={isStreamerMode}
-                        onToggleStreamerMode={handleToggleStreamerMode}
-                        onToggleSidebar={handleToggleSidebar}
-                        activeTodosCount={aggregatedTodos.length}
-                      />
-                    </Suspense>
-                  </ErrorBoundary>
-                </motion.div>
-              </AnimatePresence>
-          ) : (<>
+                  <Suspense fallback={<ProjectDetailSkeleton />}>
+                    <ProjectDetailView
+                      project={selectedProject}
+                      onBack={handleBack}
+                      onUpdateProject={handleUpdateProject}
+                      onDeleteProject={handleDeleteProject}
+                      onNotify={addToast}
+                      isDarkMode={isDarkMode}
+                      onToggleDarkMode={handleToggleDarkMode}
+                      isStreamerMode={isStreamerMode}
+                      onToggleStreamerMode={handleToggleStreamerMode}
+                      onToggleSidebar={handleToggleSidebar}
+                      activeTodosCount={aggregatedTodos.length}
+                    />
+                  </Suspense>
+                </ErrorBoundary>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="dashboard"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.12 }}
+              >
                 <DashboardHeader
                   activeFilter={activeFilter}
                   onFilterChange={setActiveFilter}
@@ -639,65 +792,28 @@ function DashboardContent() {
                     {[...Array(4)].map((_, i) => <CardSkeleton key={i} />)}
                   </div>
                 ) : (
-                  <motion.div
-                    key="dashboard-content"
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.15 }}
-                  >
+                  <div>
                     {filteredProjects.length > 0 ? (
-                      <DragDropContext onDragEnd={handleProjectDragEnd}>
-                        <Droppable droppableId="projects">
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.droppableProps}
-                              className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 auto-rows-fr transition-colors ${
-                                snapshot.isDraggingOver ? 'bg-[var(--accent-clay)]/5 rounded-2xl p-2' : ''
-                              }`}
-                            >
-                              {filteredProjects.map((project, index) => (
-                                <Draggable
-                                  key={String(project.id)}
-                                  draggableId={String(project.id)}
-                                  index={index}
-                                >
-                                  {(provided, snapshot) => (
-                                    <div
-                                      ref={provided.innerRef}
-                                      {...provided.draggableProps}
-                                      {...provided.dragHandleProps}
-                                      style={provided.draggableProps.style}
-                                      className={`transition-shadow ${
-                                        snapshot.isDragging ? 'shadow-2xl ring-2 ring-[var(--accent-clay)]/40 rounded-2xl scale-105' : ''
-                                      }`}
-                                    >
-                                      <ErrorBoundary 
-                                        key={project.id}
-                                        context={`ProjectCard-${project.id}`}
-                                        errorMessage="Failed to load this project card."
-                                      >
-                                        <ProjectCard
-                                          project={project}
-                                          onClick={handleCardClick}
-                                          onUpdateProject={handleUpdateProject}
-                                          onDeleteProject={handleDeleteProject}
-                                          onDeletePermanent={handleDeletePermanent}
-                                          onNotify={addToast}
-                                        />
-                                      </ErrorBoundary>
-                                    </div>
-                                  )}
-                                </Draggable>
-                              ))}
-                              {provided.placeholder}
-                              {activeFilter === 'All' && !searchQuery && (
-                                <NewProjectCard onClick={() => setIsNewModalOpen(true)} />
+                      <DndContext onDragStart={handleProjectDragStart} onDragEnd={handleProjectDragEnd} sensors={sensors} collisionDetection={closestCorners}>
+                        <SortableContext items={filteredProjects.map((p) => String(p.id))} strategy={rectSortingStrategy}>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 auto-rows-fr">
+                            {filteredProjects.map((project) => (
+                              <SortableProjectCard
+                                key={String(project.id)}
+                                project={project}
+                                onClick={handleCardClick}
+                                onUpdateProject={handleUpdateProject}
+                                onDeleteProject={handleDeleteProject}
+                                onDeletePermanent={handleDeletePermanent}
+                                onNotify={addToast}
+                              />
+                            ))}
+                            {activeFilter === 'All' && !searchQuery && (
+                              <NewProjectCard onClick={() => setIsNewModalOpen(true)} />
                               )}
-                            </div>
-                          )}
-                        </Droppable>
-                      </DragDropContext>
+                              </div>
+                            </SortableContext>
+                          </DndContext>
                     ) : projects.length === 0 ? (
                       <EmptyPortfolio onNewProject={() => setIsNewModalOpen(true)} />
                     ) : (
@@ -713,10 +829,11 @@ function DashboardContent() {
                         </button>
                       </div>
                     )}
-                  </motion.div>
+                  </div>
                 )}
-              </>
+              </motion.div>
             )}
+          </AnimatePresence>
         </div>
       </div>
 

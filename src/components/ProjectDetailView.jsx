@@ -1,6 +1,6 @@
 'use client';
 import { useState, useRef, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useConfirm } from '@/components/ConfirmModal';
 import { createTodo, recalculateProject } from '@/lib/storage';
 import { computeProgress, computeNextStepText, getFirstActiveTodo } from '@/components/detail/shared';
@@ -32,11 +32,9 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
     if (activeTab === 'Settings' && settingsHasUnsavedChanges) {
       const ok = await confirm('You have unsaved changes in Settings. Discard them?');
       if (!ok) return;
-      setActiveTab(newTab);
       setSettingsHasUnsavedChanges(false);
-    } else {
-      setActiveTab(newTab);
     }
+    setActiveTab(newTab);
   }, [activeTab, settingsHasUnsavedChanges, confirm]);
 
   const handleAddTodo = useCallback((text, priority, details, deadline) => {
@@ -330,7 +328,7 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
                 <motion.div
                   layoutId="detail-tab"
                   className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--accent-clay)]"
-                  transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 40 }}
                 />
               )}
             </button>
@@ -338,15 +336,9 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
         })}
       </nav>
 
-      <AnimatePresence mode="wait">
+      <div className="relative">
         {activeTab === 'Overview' && (
-          <motion.div
-            key="overview"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-          >
+          <div key="overview">
             <OverviewTab
               project={project}
               onAddTodo={handleAddTodo}
@@ -354,17 +346,12 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
               onRemoveTodo={handleRemoveTodo}
               onEditTodo={handleEditTodo}
               onReorderTodos={handleReorderTodos}
+              onShowAllTodos={() => handleTabChange('Todos')}
             />
-          </motion.div>
+          </div>
         )}
         {activeTab === 'Todos' && (
-          <motion.div
-            key="todos"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-          >
+          <div key="todos">
             <TodosTab
               project={project}
               onAddTodo={handleAddTodo}
@@ -373,69 +360,43 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
               onEditTodo={handleEditTodo}
               onReorderTodos={handleReorderTodos}
               onSortChange={handleSortChange}
-              onUpdateProject={onUpdateProject}
-              onNotify={onNotify}
             />
-          </motion.div>
+          </div>
         )}
         {activeTab === 'Workspace' && (
-          <motion.div
-            key="workspace"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-          >
+          <div key="workspace">
             <WorkspaceTab
               project={project}
               onUpdateProject={onUpdateProject}
               onNotify={onNotify}
             />
-          </motion.div>
+          </div>
         )}
         {activeTab === 'Scratchpad' && (
-          <motion.div
-            key="scratchpad"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-          >
+          <div key="scratchpad">
             <ScratchpadTab
               project={project}
               onUpdateProject={onUpdateProject}
               onNotify={onNotify}
             />
-          </motion.div>
+          </div>
         )}
         {activeTab === 'Timeline' && (
-          <motion.div
-            key="timeline"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-          >
+          <div key="timeline">
             <TimelineTab project={project} />
-          </motion.div>
+          </div>
         )}
         {activeTab === 'Settings' && (
-          <motion.div
-            key="settings"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-          >
+          <div key="settings">
             <SettingsTab
               project={project}
               onUpdateProject={onUpdateProject}
               onNotify={onNotify}
               onUnsavedChanges={setSettingsHasUnsavedChanges}
             />
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
+      </div>
 
       <EditTodoModal
         todo={editingTodo}
