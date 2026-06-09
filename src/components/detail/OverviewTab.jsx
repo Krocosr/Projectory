@@ -5,7 +5,7 @@ import { DetailRow, DraggableTodoList, AddTodoBar, TodoItem, computeProgress, co
 import { formatDeadlineForDisplay } from '@/lib/dateUtils';
 import { ProgressBar } from '@/components/ui';
 
-export default function OverviewTab({ project, onAddTodo, onToggleTodo, onRemoveTodo, onEditTodo, onReorderTodos, onShowAllTodos }) {
+export default function OverviewTab({ project, onAddTodo, onToggleTodo, onRemoveTodo, onEditTodo, onReorderTodos, onShowAllTodos, scrollContainerRef, onNotify }) {
   const [showAll, setShowAll] = useState(false);
   const todosSectionRef = useRef(null);
 
@@ -32,7 +32,7 @@ export default function OverviewTab({ project, onAddTodo, onToggleTodo, onRemove
   }, [project.todos]);
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1 pb-10">
       <DetailRow label="Goal" value={project.goal} />
       <DetailRow label="Current Focus" value={project.currentFocus || currentFocusText} />
       <DetailRow label="Next Step" value={project.nextStep || nextStepText} />
@@ -63,6 +63,7 @@ export default function OverviewTab({ project, onAddTodo, onToggleTodo, onRemove
                 onToggle={onToggleTodo}
                 onRemove={onRemoveTodo}
                 onEdit={onEditTodo}
+                timeline={project.timeline}
                 onReorder={(reordered) => {
                   const done = (project.todos || []).filter((t) => t.done);
                   onReorderTodos([...reordered, ...done]);
@@ -84,17 +85,15 @@ export default function OverviewTab({ project, onAddTodo, onToggleTodo, onRemove
                   onToggle={onToggleTodo}
                   onRemove={onRemoveTodo}
                   onEdit={onEditTodo}
+                  timeline={project.timeline}
                 />
               ))}
               {activeTodos.length > 3 && (
                 <button
                   onClick={() => {
                     onShowAllTodos?.();
-                    // Scroll to top when navigating to Todos tab
                     requestAnimationFrame(() => {
-                      requestAnimationFrame(() => {
-                        window.scrollTo(0, 0);
-                      });
+                      scrollContainerRef?.current?.scrollTo({ top: 0 });
                     });
                   }}
                   className="w-full mt-2 px-3 py-2 text-xs font-medium text-[var(--accent-clay)] hover:text-[var(--text-primary)] bg-[var(--accent-clay)]/[0.04] hover:bg-[var(--accent-clay)]/[0.08] rounded-lg transition-colors"
@@ -108,7 +107,7 @@ export default function OverviewTab({ project, onAddTodo, onToggleTodo, onRemove
           <p className="text-xs text-[var(--text-muted)]">No active todos</p>
         )}
         <div className="mt-3">
-          <AddTodoBar onAdd={onAddTodo} />
+          <AddTodoBar onAdd={onAddTodo} onNotify={onNotify} />
         </div>
       </div>
     </div>
@@ -123,4 +122,5 @@ OverviewTab.propTypes = {
   onEditTodo: PropTypes.func.isRequired,
   onReorderTodos: PropTypes.func.isRequired,
   onShowAllTodos: PropTypes.func,
+  scrollContainerRef: PropTypes.object,
 };

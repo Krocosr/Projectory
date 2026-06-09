@@ -4,7 +4,7 @@ import PropTypes from 'prop-types';
 import { DraggableTodoList, AddTodoBar, TodoItem } from './shared';
 import { sortTodos, SORT_OPTIONS, groupTodosByDeadline } from '@/lib/todoAggregator';
 
-export default function TodosTab({ project, onAddTodo, onToggleTodo, onRemoveTodo, onEditTodo, onReorderTodos, onSortChange, addTodoPosition = 'top' }) {
+export default function TodosTab({ project, onAddTodo, onToggleTodo, onRemoveTodo, onEditTodo, onReorderTodos, onSortChange, addTodoPosition = 'top', onNotify }) {
   const [section, setSection] = useState('Active');
   const [showGrouped, setShowGrouped] = useState(false);
   const sortBy = project.sortState || 'default';
@@ -75,7 +75,7 @@ export default function TodosTab({ project, onAddTodo, onToggleTodo, onRemoveTod
 
       {addTodoPosition === 'top' && (
         <div className="mb-4">
-          <AddTodoBar onAdd={onAddTodo} />
+          <AddTodoBar onAdd={onAddTodo} onNotify={onNotify} />
         </div>
       )}
 
@@ -109,6 +109,7 @@ export default function TodosTab({ project, onAddTodo, onToggleTodo, onRemoveTod
                       onRemove={onRemoveTodo}
                       onEdit={onEditTodo}
                       dragHandleProps={{}}
+                      timeline={project.timeline}
                     />
                   ))}
                 </div>
@@ -123,6 +124,7 @@ export default function TodosTab({ project, onAddTodo, onToggleTodo, onRemoveTod
           onRemove={onRemoveTodo}
           onEdit={onEditTodo}
           onReorder={section === 'Active' ? handleReorderActive : handleReorderDone}
+          timeline={project.timeline}
         />
       ) : (
         <p className="text-xs text-[var(--text-muted)] py-4 text-center">
@@ -132,7 +134,7 @@ export default function TodosTab({ project, onAddTodo, onToggleTodo, onRemoveTod
 
       {addTodoPosition === 'bottom' && (
         <div className="mt-4">
-          <AddTodoBar onAdd={onAddTodo} />
+          <AddTodoBar onAdd={onAddTodo} onNotify={onNotify} />
         </div>
       )}
     </div>

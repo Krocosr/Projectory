@@ -133,6 +133,7 @@ export default function WorkspaceTab({ project, onUpdateProject, onNotify }) {
             rows={6}
             className="w-full px-3.5 py-2.5 rounded-xl border border-transparent bg-transparent focus:border-[var(--accent-clay)] focus:bg-[var(--bg-card)] focus:ring-2 focus:ring-[var(--accent-clay)]/30 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none transition-all resize-none"
             aria-label="Project notes"
+            data-streamer
           />
           <Button onClick={handleSaveNotes} variant="gradient" className="px-4 py-1.5">
             Save Notes
@@ -176,14 +177,15 @@ export default function WorkspaceTab({ project, onUpdateProject, onNotify }) {
           <div className="space-y-2">
             {(project.links || []).length > 0 ? project.links.map((link, i) => (
               <div key={link.url + link.title + i} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-[var(--border-subtle)]/40 group">
-                <a
-                  href={link.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-[var(--accent-slate)] hover:text-[var(--accent-slate-light)] transition-colors truncate"
-                >
-                  {link.title || link.url}
-                </a>
+                  <a
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-[var(--accent-slate)] hover:text-[var(--accent-slate-light)] transition-colors truncate"
+                    data-streamer
+                  >
+                    {link.title || link.url}
+                  </a>
                 <button
                   onClick={() => handleRemoveLink(i)}
                   className="opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-[var(--accent-clay)] transition-all p-1"
@@ -245,11 +247,12 @@ export default function WorkspaceTab({ project, onUpdateProject, onNotify }) {
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-sm text-[#5A8F6C] hover:underline truncate"
+                      data-streamer
                     >
                       {asset.name}
                     </a>
                   ) : (
-                    <span className="text-sm text-[var(--text-secondary)] truncate">{asset.name}</span>
+                    <span className="text-sm text-[var(--text-secondary)] truncate" data-streamer>{asset.name}</span>
                   )}
                 </div>
                 <button

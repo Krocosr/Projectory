@@ -44,13 +44,14 @@ function TodoItem({ todo, onToggle, onNavigate, dragHandleProps }) {
         onClick={() => onNavigate(todo.projectId)}
         className="flex-1 min-w-0 text-left"
       >
-        <p className="text-sm text-[var(--text-primary)] leading-snug truncate mb-1.5">
+        <p className="text-sm text-[var(--text-primary)] leading-snug truncate mb-1.5" data-streamer>
           {todo.text}
         </p>
         <div className="flex items-center gap-2 flex-wrap">
           <span
             className="text-[11px] font-bold px-2 py-0.5 rounded bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-primary)]"
             title={todo.projectTitle}
+            data-streamer
           >
             {truncateProjectName(todo.projectTitle)}
           </span>
@@ -93,10 +94,10 @@ export default function ActiveTodosSidebar({ isOpen, todos, onToggleTodo, onNavi
   const sortedTodos = useMemo(() => sortTodos(filteredTodos, sortBy), [filteredTodos, sortBy]);
 
   const scrollRef = useRef(null);
-  const [displayTodos, setDisplayTodos] = useState([]);
+  const [displayTodos, setDisplayTodos] = useState(sortedTodos);
 
   useEffect(() => {
-    setDisplayTodos([...sortedTodos]);
+    setDisplayTodos(sortedTodos);
   }, [sortedTodos]);
 
   const virtualizer = useVirtualizer({

@@ -1,6 +1,5 @@
 'use client';
 import { memo, useRef } from 'react';
-import { motion } from 'framer-motion';
 import PropTypes from 'prop-types';
 import { useRateLimit } from '@/hooks/useRateLimit';
 import { PROJECT_SORT_OPTIONS } from '@/lib/constants';
@@ -82,7 +81,7 @@ const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterCh
               </span>
             )}
           </button>
-          <motion.button
+          <button
             onClick={onToggleStreamerMode}
             title={isStreamerMode ? 'Disable streamer mode' : 'Enable streamer mode'}
             className={`p-2 rounded-lg transition-colors ${
@@ -90,7 +89,6 @@ const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterCh
                 ? 'text-red-400 hover:text-red-300 bg-red-500/10'
                 : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--border-subtle)]/50'
             }`}
-            whileTap={{ scale: 0.9 }}
           >
             {isStreamerMode ? (
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -105,32 +103,22 @@ const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterCh
                 <circle cx="12" cy="12" r="3" />
               </svg>
             )}
-          </motion.button>
-          <motion.button
+          </button>
+          <button
             onClick={handleToggleDarkMode}
             title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
             className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--border-subtle)]/50 transition-colors"
-            whileTap={{ scale: 0.9, rotate: 180 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
           >
-            <motion.div
-              key={isDarkMode ? 'dark' : 'light'}
-              initial={{ rotate: -180, opacity: 0 }}
-              animate={{ rotate: 0, opacity: 1 }}
-              exit={{ rotate: 180, opacity: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              {isDarkMode ? (
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-              ) : (
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                </svg>
-              )}
-            </motion.div>
-          </motion.button>
+            {isDarkMode ? (
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              </svg>
+            )}
+          </button>
           <input
             ref={fileInputRef}
             type="file"
@@ -167,26 +155,17 @@ const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterCh
                 : projectCounts?.[filter] || 0;
 
           return (
-            <motion.button
+            <button
               key={filter}
               onClick={() => onFilterChange(filter)}
               role="tab"
               aria-selected={isActive}
               className={`relative px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                 isActive
-                  ? 'text-[var(--text-primary)]'
+                  ? 'text-[var(--text-primary)] bg-[var(--bg-card)] border border-[var(--border-subtle)] shadow-sm'
                   : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
               }`}
-              initial={false}
-              whileTap={{ scale: 0.96 }}
             >
-              {isActive && (
-                <motion.div
-                  layoutId="active-tab"
-                  className="absolute inset-0 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-lg shadow-sm"
-                  transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                />
-              )}
               <span className="relative z-10 flex items-center gap-2">
                 {filter}
                 <span className={`text-xs px-1.5 py-0.5 rounded-full ${
@@ -195,7 +174,7 @@ const DashboardHeader = memo(function DashboardHeader({ activeFilter, onFilterCh
                   {count}
                 </span>
               </span>
-            </motion.button>
+            </button>
           );
         })}
         <div className="nav-sort-wrap">

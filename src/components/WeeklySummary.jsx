@@ -20,13 +20,13 @@ export default function WeeklySummary({ projects }) {
 
     (projects || []).forEach((p) => {
       (p.todos || []).forEach((t) => {
-        if (t.done && t.createdAt && inLastWeek(t.createdAt)) {
+        if (t.done && inLastWeek(t.completedAt || t.createdAt)) {
           completedTodos.push({ project: p.title, text: t.text });
         }
       });
 
       (p.pomodoroLog || []).forEach((log) => {
-        if (inLastWeek(log.date)) {
+        if (inLastWeek(log.startedAt || log.date)) {
           pomodoroSessions.push({ project: p.title, ...log });
         }
       });

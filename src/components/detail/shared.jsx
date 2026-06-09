@@ -9,6 +9,14 @@ import { PRIORITY_STYLES, Z_INDEX } from '@/lib/constants';
 import { formatRelativeTime, formatDeadlineForDisplay } from '@/lib/dateUtils';
 import { Input, Textarea, Select, Button } from '@/components/ui';
 
+function findTodoCompletedAt(todoText, timeline) {
+  if (!timeline || !todoText) return null;
+  const escaped = todoText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`^Marked "${escaped}" as done$`);
+  const entry = [...timeline].reverse().find((e) => re.test(e.action));
+  return entry?.date || null;
+}
+
 export function groupTimelineByDate(entries) {
   const groups = {};
   (entries || []).forEach((e) => {
@@ -48,7 +56,7 @@ export function DetailRow({ label, value }) {
   );
 }
 
-export const TodoItem = memo(function TodoItem({ todo, onToggle, onRemove, onEdit, dragHandleProps, onExpandChange }) {
+export const TodoItem = memo(function TodoItem({ todo, onToggle, onRemove, onEdit, dragHandleProps, onExpandChange, timeline }) {
   const [expanded, setExpanded] = useState(false);
   const [contextMenu, setContextMenu] = useState(null);
   const menuRef = useRef(null);
@@ -164,11 +172,20 @@ export const TodoItem = memo(function TodoItem({ todo, onToggle, onRemove, onEdi
               </button>
             )}
           </div>
-          {todo.deadline && (
+          {todo.deadline && !todo.done && (
             <span className="text-[10px] text-[var(--text-muted)] shrink-0">
               {formatDeadlineForDisplay(todo.deadline)}
             </span>
           )}
+          {todo.done && (() => {
+            const timestamp = todo.completedAt || findTodoCompletedAt(todo.text, timeline);
+            if (!timestamp) return null;
+            return (
+              <span className="text-[10px] text-[var(--text-muted)] shrink-0" title={new Date(timestamp).toLocaleString()}>
+                {formatRelativeTime(timestamp)}
+              </span>
+            );
+          })()}
           <span className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${PRIORITY_STYLES[todo.priority] || PRIORITY_STYLES.Medium}`}>
             {todo.priority}
           </span>
@@ -262,7 +279,7 @@ export const TodoItem = memo(function TodoItem({ todo, onToggle, onRemove, onEdi
   );
 });
 
-export function AddTodoBar({ onAdd }) {
+export function AddTodoBar({ onAdd, onNotify }) {
   const [text, setText] = useState('');
   const [priority, setPriority] = useState('Medium');
   const [details, setDetails] = useState('');
@@ -278,7 +295,7 @@ export function AddTodoBar({ onAdd }) {
       return;
     }
     if (text.trim().length > 200) {
-      alert('Todo text must be 200 characters or fewer');
+      if (onNotify) onNotify('Todo text must be 200 characters or fewer');
       return;
     }
     onAdd(text.trim(), priority, details.trim(), deadline);
@@ -342,7 +359,7 @@ export function AddTodoBar({ onAdd }) {
   );
 }
 
-export function DraggableTodoList({ todos, onToggle, onRemove, onEdit, onReorder, maxHeight }) {
+export function DraggableTodoList({ todos, onToggle, onRemove, onEdit, onReorder, maxHeight, timeline }) {
   const parentRef = useRef(null);
 
   const handleItemSizeChange = useCallback(() => {
@@ -393,6 +410,7 @@ export function DraggableTodoList({ todos, onToggle, onRemove, onEdit, onReorder
                         onEdit={onEdit}
                         dragHandleProps={provided.dragHandleProps}
                         onExpandChange={handleItemSizeChange}
+                        timeline={timeline}
                       />
                     </div>
                   )}
@@ -407,7 +425,7 @@ export function DraggableTodoList({ todos, onToggle, onRemove, onEdit, onReorder
   );
 }
 
-export function EditTodoModal({ todo, isOpen, onClose, onSave }) {
+export function EditTodoModal({ todo, isOpen, onClose, onSave, onNotify }) {
   const [text, setText] = useState(todo?.text || '');
   const [priority, setPriority] = useState(todo?.priority || 'Medium');
   const [details, setDetails] = useState(todo?.details || '');
@@ -447,7 +465,7 @@ export function EditTodoModal({ todo, isOpen, onClose, onSave }) {
     e.preventDefault();
     if (!text.trim()) return;
     if (text.trim().length > 200) {
-      alert('Todo text must be 200 characters or fewer');
+      if (onNotify) onNotify('Todo text must be 200 characters or fewer');
       return;
     }
     onSave({ ...todo, text: text.trim(), priority, details: details.trim(), deadline });

@@ -49,8 +49,9 @@ export async function PUT(request) {
       return NextResponse.json({ error: 'Projects array is required' }, { status: 400 });
     }
 
-    writeProjects(newProjects);
-    return NextResponse.json({ projects: newProjects }, { status: 200 });
+    const enriched = newProjects.map(recalculateProject);
+    writeProjects(enriched);
+    return NextResponse.json({ projects: enriched }, { status: 200 });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to update projects' }, { status: 500 });
   }

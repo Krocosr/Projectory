@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { readProjects, writeProjects } from '@/lib/fileStorage';
-import { createTimelineEntry } from '@/lib/storage';
+import { createTimelineEntry, recalculateProject } from '@/lib/storage';
 
 export async function PATCH(request, { params }) {
   try {
@@ -21,16 +21,22 @@ export async function PATCH(request, { params }) {
     }
 
     const oldTodo = project.todos[todoIndex];
-    project.todos[todoIndex] = { ...oldTodo, ...body };
+    const ALLOWED_FIELDS = ['text', 'priority', 'details', 'deadline', 'done'];
+    const safeBody = Object.fromEntries(
+      Object.entries(body).filter(([key]) => ALLOWED_FIELDS.includes(key))
+    );
+    project.todos[todoIndex] = { ...oldTodo, ...safeBody };
 
     if (body.done !== undefined && body.done !== oldTodo.done) {
       const action = body.done ? `Completed todo: ${oldTodo.text}` : `Reopened todo: ${oldTodo.text}`;
+      project.todos[todoIndex] = { ...project.todos[todoIndex], completedAt: body.done ? new Date().toISOString() : null };
       project.timeline = [...(project.timeline || []), createTimelineEntry(action)];
     }
 
+    projects[projectIndex] = recalculateProject(project);
     writeProjects(projects);
 
-    return NextResponse.json({ todo: project.todos[todoIndex], project }, { status: 200 });
+    return NextResponse.json({ todo: project.todos[todoIndex], project: projects[projectIndex] }, { status: 200 });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to update todo' }, { status: 500 });
   }
@@ -56,6 +62,7 @@ export async function DELETE(request, { params }) {
     const removed = project.todos[todoIndex];
     project.todos.splice(todoIndex, 1);
     project.timeline = [...(project.timeline || []), createTimelineEntry(`Removed todo: ${removed.text}`)];
+    projects[projectIndex] = recalculateProject(project);
     writeProjects(projects);
 
     return NextResponse.json({ message: 'Todo removed', project }, { status: 200 });

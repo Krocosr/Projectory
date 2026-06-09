@@ -6,9 +6,18 @@ import PropTypes from 'prop-types';
 const FOCUS_SECONDS = 25 * 60;
 const BREAK_SECONDS = 5 * 60;
 
+let audioCtx = null;
+
+function getAudioContext() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  return audioCtx;
+}
+
 function beep() {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = getAudioContext();
     const o = ctx.createOscillator();
     const g = ctx.createGain();
     o.connect(g);
@@ -19,7 +28,6 @@ function beep() {
     g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
     o.start(ctx.currentTime);
     o.stop(ctx.currentTime + 0.4);
-    setTimeout(() => ctx.close(), 500);
   } catch {}
 }
 

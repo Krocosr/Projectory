@@ -32,13 +32,15 @@ function syncToApi(projects) {
   if (typeof window === 'undefined') return;
   if (syncTimer) clearTimeout(syncTimer);
   syncTimer = setTimeout(() => {
-    try {
-      fetch('/api/projects', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projects }),
-      }).catch(() => {});
-    } catch {}
+    fetch('/api/projects', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projects }),
+    }).catch((err) => {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('syncToApi failed:', err);
+      }
+    });
   }, API_SYNC_DEBOUNCE_MS);
 }
 

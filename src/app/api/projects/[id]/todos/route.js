@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { readProjects, writeProjects } from '@/lib/fileStorage';
-import { createTimelineEntry } from '@/lib/storage';
+import { createTimelineEntry, recalculateProject } from '@/lib/storage';
 
 export async function POST(request, { params }) {
   try {
@@ -30,6 +30,7 @@ export async function POST(request, { params }) {
 
     projects[index].todos = [...(projects[index].todos || []), todo];
     projects[index].timeline = [...(projects[index].timeline || []), createTimelineEntry(`Added todo: ${todo.text}`)];
+    projects[index] = recalculateProject(projects[index]);
     writeProjects(projects);
 
     return NextResponse.json({ todo, project: projects[index] }, { status: 200 });

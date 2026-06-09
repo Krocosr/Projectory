@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PropTypes from 'prop-types';
 import { STATUSES, STATUS_STYLES, STATUS_COLORS, Z_INDEX } from '@/lib/constants';
-import { formatDeadlineForDisplay, formatLastWorked } from '@/lib/dateUtils';
+import { formatLastWorked, formatDeadlineRemaining } from '@/lib/dateUtils';
 import { ProgressBar } from '@/components/ui';
 import { useConfirm } from '@/components/ConfirmModal';
 
@@ -241,7 +241,7 @@ function ProjectCard({ project, onClick, onUpdateProject, onDeleteProject, onDel
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
-        {...(isDragging ? {} : { whileHover: { scale: 1.02, transition: { duration: 0.2, ease: 'easeOut' } } })}
+        {...(isDragging ? {} : { whileHover: { y: -6, transition: { duration: 0.2, ease: 'easeOut' } } })}
         onClick={() => onClick?.(project)}
         onContextMenu={handleContextMenu}
         className="group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-clay)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)] rounded-2xl"
@@ -294,7 +294,7 @@ function ProjectCard({ project, onClick, onUpdateProject, onDeleteProject, onDel
               <span className="font-medium text-[var(--text-secondary)]">{project.todoCount}</span> todos
             </span>
             <span className="text-[var(--text-muted)]">
-              <span className="font-medium text-[var(--text-secondary)]">{project.progress === 100 ? 'done' : project.deadline}</span>
+              <span className="font-medium text-[var(--text-secondary)]">{project.progress === 100 ? 'done' : (formatDeadlineRemaining(project.deadline) || project.deadline)}</span>
             </span>
           </div>
         </div>
@@ -337,6 +337,8 @@ export default memo(ProjectCard, (prevProps, nextProps) => {
     prevProps.project.title === nextProps.project.title &&
     prevProps.project.currentFocus === nextProps.project.currentFocus &&
     prevProps.project.todoCount === nextProps.project.todoCount &&
-    prevProps.project.deadline === nextProps.project.deadline
+    prevProps.project.deadline === nextProps.project.deadline &&
+    prevProps.project.description === nextProps.project.description &&
+    prevProps.isDragging === nextProps.isDragging
   );
 });

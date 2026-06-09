@@ -88,7 +88,7 @@ export default function SettingsTab({ project, onUpdateProject, onNotify, onUnsa
                 {field.value || '\u2014'}
               </span>
             ) : (
-              <span className="text-sm font-medium text-[var(--text-primary)] text-right max-w-[60%] truncate">{field.value || '\u2014'}</span>
+              <span className="text-sm font-medium text-[var(--text-primary)] text-right max-w-[60%] truncate" data-streamer>{field.value || '\u2014'}</span>
             )}
           </div>
         ))}

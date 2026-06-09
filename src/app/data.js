@@ -8,7 +8,7 @@
  * - Next.js is used for its routing, build optimization, and developer experience
  * - All components use 'use client' directive (no React Server Components)
  * - State management: Single source of truth in page.js, passed down as props
- * - No API routes used - all data persists to localStorage via src/lib/storage.js
+ * - See AGENTS.md for the current API route inventory
  * - Routing via useSearchParams with ?project= query param (requires Suspense boundary)
  * 
  * ID Generation:

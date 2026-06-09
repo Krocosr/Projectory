@@ -88,3 +88,39 @@ export function toDateInputValue(isoDate) {
     return '';
   }
 }
+
+const MS_IN_SEC = 1000;
+const MS_IN_MIN = 60 * MS_IN_SEC;
+const MS_IN_HOUR = 60 * MS_IN_MIN;
+const MS_IN_DAY = 24 * MS_IN_HOUR;
+const MS_IN_MONTH = 30 * MS_IN_DAY;
+
+/**
+ * Format remaining time from now until a deadline date.
+ * Tiered: >= 30 days → "X months", >= 1 day → "X days",
+ * >= 1 hour → "X hours", >= 1 min → "X mins", else "X secs".
+ * @param {string} deadline - ISO date string or "Ongoing" / "Completed"
+ * @returns {string} e.g. "3 months left", "12 days left", "Overdue"
+ */
+export function formatDeadlineRemaining(deadline) {
+  if (!deadline || deadline === 'Ongoing' || deadline === 'Completed') return '';
+
+  const target = new Date(deadline);
+  if (isNaN(target.getTime())) return '';
+
+  const diff = target - Date.now();
+
+  if (diff < 0) {
+    const past = Math.abs(diff);
+    if (past >= MS_IN_DAY) return `${Math.floor(past / MS_IN_DAY)}d overdue`;
+    if (past >= MS_IN_HOUR) return `${Math.floor(past / MS_IN_HOUR)}h overdue`;
+    if (past >= MS_IN_MIN) return `${Math.floor(past / MS_IN_MIN)}m overdue`;
+    return '<1m overdue';
+  }
+
+  if (diff >= MS_IN_MONTH) return `${Math.floor(diff / MS_IN_MONTH)} months left`;
+  if (diff >= MS_IN_DAY) return `${Math.floor(diff / MS_IN_DAY)} days left`;
+  if (diff >= MS_IN_HOUR) return `${Math.floor(diff / MS_IN_HOUR)} hours left`;
+  if (diff >= MS_IN_MIN) return `${Math.floor(diff / MS_IN_MIN)} mins left`;
+  return `${Math.floor(diff / MS_IN_SEC)} secs left`;
+}
