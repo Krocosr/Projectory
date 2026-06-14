@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img src="/Screenshot%202026-06-14%20103843.png" width="700" alt="Dashboard screenshot" />
+  <img src="/screenshot-dashboard.png" width="700" alt="Dashboard screenshot" />
 </p>
 
 ---
@@ -51,7 +51,7 @@ Projectory doesn't try to replace Jira, Notion, or Linear. Instead, it focuses o
 - **CLI Tool** — Manage everything from the terminal: `node scripts/projectory-cli.mjs list`
 
 <p align="center">
-  <img src="/Screenshot%202026-06-14%20103919.png" width="700" alt="Project detail screenshot" />
+  <img src="/screenshot-detail.png" width="700" alt="Project detail screenshot" />
 </p>
 
 ---
