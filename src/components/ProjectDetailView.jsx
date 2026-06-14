@@ -1,6 +1,5 @@
 'use client';
 import { useState, useRef, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useConfirm } from '@/components/ConfirmModal';
 import { createTodo, recalculateProject } from '@/lib/storage';
 import { computeProgress, computeNextStepText, getFirstActiveTodo } from '@/components/detail/shared';
@@ -14,7 +13,7 @@ import { OverviewTab, TodosTab, WorkspaceTab, TimelineTab, SettingsTab, EditTodo
 
 const TABS = ['Overview', 'Todos', 'Workspace', 'Scratchpad', 'Timeline', 'Settings'];
 
-export default function ProjectDetailView({ project, onBack, onUpdateProject, onDeleteProject, onNotify, isDarkMode, onToggleDarkMode, onToggleSidebar, activeTodosCount, isStreamerMode, onToggleStreamerMode }) {
+export default function ProjectDetailView({ project, onBack, onUpdateProject, onDeleteProject, onNotify, isDarkMode, onToggleDarkMode, onToggleSidebar, activeTodosCount, isStreamerMode, onToggleStreamerMode, scrollContainerRef }) {
   const confirm = useConfirm();
   const isToggleAllowed = useRateLimit(300);
   const [activeTab, setActiveTab] = useState('Overview');
@@ -32,11 +31,9 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
     if (activeTab === 'Settings' && settingsHasUnsavedChanges) {
       const ok = await confirm('You have unsaved changes in Settings. Discard them?');
       if (!ok) return;
-      setActiveTab(newTab);
       setSettingsHasUnsavedChanges(false);
-    } else {
-      setActiveTab(newTab);
     }
+    setActiveTab(newTab);
   }, [activeTab, settingsHasUnsavedChanges, confirm]);
 
   const handleAddTodo = useCallback((text, priority, details, deadline) => {
@@ -84,8 +81,9 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
     const p = projectRef.current;
     const onUpdate = onUpdateProjectRef.current;
     const onNotify = onNotifyRef.current;
+    const now = new Date().toISOString();
     const newTodos = (p.todos || []).map((t) =>
-      t.id === todoId ? { ...t, done: !t.done } : t
+      t.id === todoId ? { ...t, done: !t.done, completedAt: t.done ? null : now } : t
     );
     const toggled = newTodos.find((t) => t.id === todoId);
     
@@ -158,23 +156,19 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <motion.button
+        <button
           onClick={onBack}
-          whileHover={{ x: -2 }}
-          whileTap={{ scale: 0.96 }}
           className="flex items-center gap-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
           Back to Projects
-        </motion.button>
+        </button>
         <div className="flex items-center gap-2">
           {onToggleSidebar && (
-            <motion.button
+            <button
               onClick={onToggleSidebar}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
               className="relative flex items-center gap-1.5 p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--border-subtle)]/50 transition-colors"
               aria-label="Toggle active todos sidebar"
               title="Toggle active todos sidebar"
@@ -187,10 +181,10 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
                   {activeTodosCount > 9 ? '9+' : activeTodosCount}
                 </span>
               )}
-            </motion.button>
+            </button>
           )}
           {onToggleStreamerMode && (
-            <motion.button
+            <button
               onClick={onToggleStreamerMode}
               title={isStreamerMode ? 'Disable streamer mode' : 'Enable streamer mode'}
               className={`p-1.5 rounded-lg transition-colors ${
@@ -198,7 +192,6 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
                   ? 'text-red-400 hover:text-red-300 bg-red-500/10'
                   : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--border-subtle)]/50'
               }`}
-              whileTap={{ scale: 0.9 }}
             >
               {isStreamerMode ? (
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -213,38 +206,26 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
                   <circle cx="12" cy="12" r="3" />
                 </svg>
               )}
-            </motion.button>
+            </button>
           )}
-          <motion.button
+          <button
             onClick={() => { if (!isToggleAllowed()) return; onToggleDarkMode(); }}
-            whileTap={{ scale: 0.9, rotate: 180 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
             className="flex items-center gap-1.5 p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--border-subtle)]/50 transition-colors"
             aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
             title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
           >
-            <motion.div
-              key={isDarkMode ? 'dark' : 'light'}
-              initial={{ rotate: -180, opacity: 0 }}
-              animate={{ rotate: 0, opacity: 1 }}
-              exit={{ rotate: 180, opacity: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              {isDarkMode ? (
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-              ) : (
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                </svg>
-              )}
-            </motion.div>
-          </motion.button>
-          <motion.button
+            {isDarkMode ? (
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              </svg>
+            )}
+          </button>
+          <button
             onClick={handleDeleteProject}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
             className="flex items-center gap-1.5 text-sm text-[var(--text-muted)] hover:text-red-500 transition-colors"
             aria-label="Delete project"
           >
@@ -252,7 +233,7 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
             Delete
-          </motion.button>
+          </button>
         </div>
       </div>
 
@@ -327,26 +308,16 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
             >
               {tab}
               {isActive && (
-                <motion.div
-                  layoutId="detail-tab"
-                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--accent-clay)]"
-                  transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                />
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--accent-clay)]" />
               )}
             </button>
           );
         })}
       </nav>
 
-      <AnimatePresence mode="popLayout">
+      <div className="relative min-h-[calc(100vh-380px)]">
         {activeTab === 'Overview' && (
-          <motion.div
-            key="overview"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-          >
+          <div key="overview">
             <OverviewTab
               project={project}
               onAddTodo={handleAddTodo}
@@ -354,17 +325,14 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
               onRemoveTodo={handleRemoveTodo}
               onEditTodo={handleEditTodo}
               onReorderTodos={handleReorderTodos}
+              onShowAllTodos={() => handleTabChange('Todos')}
+              scrollContainerRef={scrollContainerRef}
+              onNotify={onNotify}
             />
-          </motion.div>
+          </div>
         )}
         {activeTab === 'Todos' && (
-          <motion.div
-            key="todos"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-          >
+          <div key="todos">
             <TodosTab
               project={project}
               onAddTodo={handleAddTodo}
@@ -373,69 +341,44 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
               onEditTodo={handleEditTodo}
               onReorderTodos={handleReorderTodos}
               onSortChange={handleSortChange}
-              onUpdateProject={onUpdateProject}
               onNotify={onNotify}
             />
-          </motion.div>
+          </div>
         )}
         {activeTab === 'Workspace' && (
-          <motion.div
-            key="workspace"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-          >
+          <div key="workspace">
             <WorkspaceTab
               project={project}
               onUpdateProject={onUpdateProject}
               onNotify={onNotify}
             />
-          </motion.div>
+          </div>
         )}
         {activeTab === 'Scratchpad' && (
-          <motion.div
-            key="scratchpad"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-          >
+          <div key="scratchpad">
             <ScratchpadTab
               project={project}
               onUpdateProject={onUpdateProject}
               onNotify={onNotify}
             />
-          </motion.div>
+          </div>
         )}
         {activeTab === 'Timeline' && (
-          <motion.div
-            key="timeline"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-          >
+          <div key="timeline">
             <TimelineTab project={project} />
-          </motion.div>
+          </div>
         )}
         {activeTab === 'Settings' && (
-          <motion.div
-            key="settings"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-          >
+          <div key="settings">
             <SettingsTab
               project={project}
               onUpdateProject={onUpdateProject}
               onNotify={onNotify}
               onUnsavedChanges={setSettingsHasUnsavedChanges}
             />
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
+      </div>
 
       <EditTodoModal
         todo={editingTodo}
@@ -459,4 +402,5 @@ ProjectDetailView.propTypes = {
   onToggleStreamerMode: PropTypes.func,
   onToggleSidebar: PropTypes.func,
   activeTodosCount: PropTypes.number,
+  scrollContainerRef: PropTypes.object,
 };

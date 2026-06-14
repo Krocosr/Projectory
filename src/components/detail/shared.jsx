@@ -1,5 +1,6 @@
 'use client';
-import { useState, useEffect, useRef, memo } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, memo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { createTodo } from '@/lib/storage';
@@ -7,6 +8,14 @@ import { EMPTY_ERROR_TIMEOUT_MS } from '@/lib/constants';
 import { PRIORITY_STYLES, Z_INDEX } from '@/lib/constants';
 import { formatRelativeTime, formatDeadlineForDisplay } from '@/lib/dateUtils';
 import { Input, Textarea, Select, Button } from '@/components/ui';
+
+function findTodoCompletedAt(todoText, timeline) {
+  if (!timeline || !todoText) return null;
+  const escaped = todoText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`^Marked "${escaped}" as done$`);
+  const entry = [...timeline].reverse().find((e) => re.test(e.action));
+  return entry?.date || null;
+}
 
 export function groupTimelineByDate(entries) {
   const groups = {};
@@ -47,30 +56,50 @@ export function DetailRow({ label, value }) {
   );
 }
 
-export const TodoItem = memo(function TodoItem({ todo, onToggle, onRemove, onEdit, dragHandleProps }) {
+export const TodoItem = memo(function TodoItem({ todo, onToggle, onRemove, onEdit, dragHandleProps, onExpandChange, timeline }) {
   const [expanded, setExpanded] = useState(false);
   const [contextMenu, setContextMenu] = useState(null);
   const menuRef = useRef(null);
   const firstMenuItemRef = useRef(null);
+  const [adjustedPosition, setAdjustedPosition] = useState(null);
+
+  useLayoutEffect(() => {
+    onExpandChange?.();
+  }, [expanded, onExpandChange]);
+
+  useEffect(() => {
+    // Measure menu and adjust position to stay in viewport
+    if (contextMenu && menuRef.current) {
+      const rect = menuRef.current.getBoundingClientRect();
+      let adjustedX = contextMenu.x;
+      let adjustedY = contextMenu.y;
+
+      // Check right edge
+      if (adjustedX + rect.width > window.innerWidth - 8) {
+        adjustedX = window.innerWidth - rect.width - 8;
+      }
+      // Check bottom edge
+      if (adjustedY + rect.height > window.innerHeight - 8) {
+        adjustedY = window.innerHeight - rect.height - 8;
+      }
+      // Check left edge
+      if (adjustedX < 8) adjustedX = 8;
+      // Check top edge
+      if (adjustedY < 8) adjustedY = 8;
+
+      setAdjustedPosition({ x: adjustedX, y: adjustedY });
+    }
+  }, [contextMenu]);
 
   const handleContextMenu = (e) => {
     e.preventDefault();
-    const menuWidth = 140;
-    const menuHeight = 120;
-    let x = e.clientX;
-    let y = e.clientY;
-    if (x + menuWidth > window.innerWidth) {
-      x = window.innerWidth - menuWidth - 10;
-    }
-    if (y + menuHeight > window.innerHeight) {
-      y = window.innerHeight - menuHeight - 10;
-    }
-    if (x < 4) x = 4;
-    if (y < 4) y = 4;
-    setContextMenu({ x, y });
+    setContextMenu({ x: e.clientX, y: e.clientY });
   };
 
-  const closeContextMenu = () => setContextMenu(null);
+  const closeContextMenu = () => {
+    setContextMenu(null);
+    setAdjustedPosition(null);
+  };
 
   useEffect(() => {
     if (contextMenu) {
@@ -110,15 +139,17 @@ export const TodoItem = memo(function TodoItem({ todo, onToggle, onRemove, onEdi
         onContextMenu={handleContextMenu}
       >
         <div className="flex items-center gap-2 px-3 py-2.5">
-          <div
-            {...dragHandleProps}
-            className="opacity-0 group-hover:opacity-40 cursor-grab active:cursor-grabbing p-0.5 text-[var(--text-muted)] shrink-0"
-            aria-label="Drag to reorder"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 8h16M4 16h16" />
-            </svg>
-          </div>
+          {dragHandleProps && (
+            <div
+              {...dragHandleProps}
+              className="opacity-0 group-hover:opacity-40 cursor-grab active:cursor-grabbing p-0.5 text-[var(--text-muted)] shrink-0"
+              aria-label="Drag to reorder"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 8h16M4 16h16" />
+              </svg>
+            </div>
+          )}
           <input
             type="checkbox"
             checked={todo.done}
@@ -141,11 +172,20 @@ export const TodoItem = memo(function TodoItem({ todo, onToggle, onRemove, onEdi
               </button>
             )}
           </div>
-          {todo.deadline && (
+          {todo.deadline && !todo.done && (
             <span className="text-[10px] text-[var(--text-muted)] shrink-0">
               {formatDeadlineForDisplay(todo.deadline)}
             </span>
           )}
+          {todo.done && (() => {
+            const timestamp = todo.completedAt || findTodoCompletedAt(todo.text, timeline);
+            if (!timestamp) return null;
+            return (
+              <span className="text-[10px] text-[var(--text-muted)] shrink-0" title={new Date(timestamp).toLocaleString()}>
+                {formatRelativeTime(timestamp)}
+              </span>
+            );
+          })()}
           <span className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${PRIORITY_STYLES[todo.priority] || PRIORITY_STYLES.Medium}`}>
             {todo.priority}
           </span>
@@ -159,15 +199,26 @@ export const TodoItem = memo(function TodoItem({ todo, onToggle, onRemove, onEdi
             </svg>
           </button>
         </div>
-        {expanded && todo.details && (
-          <div className="px-3 pb-2.5 pl-12">
-            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-              {todo.details}
-            </p>
-          </div>
-        )}
+        <AnimatePresence initial={false}>
+          {expanded && todo.details && (
+            <motion.div
+              key="details"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2, ease: 'easeInOut' }}
+              className="overflow-hidden"
+            >
+              <div className="px-3 pb-2.5 pl-12">
+                <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                  {todo.details}
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-      {contextMenu && (
+      {contextMenu && createPortal(
         <AnimatePresence>
           <motion.div
             ref={menuRef}
@@ -176,7 +227,7 @@ export const TodoItem = memo(function TodoItem({ todo, onToggle, onRemove, onEdi
             exit={{ opacity: 0, scale: 0.92 }}
             transition={{ duration: 0.12 }}
             className="fixed bg-[var(--bg-card)] rounded-xl shadow-[var(--shadow-modal)] border border-[var(--border-subtle)] py-1 min-w-[140px] overflow-hidden"
-            style={{ left: contextMenu.x, top: contextMenu.y, zIndex: Z_INDEX.CONTEXT_MENU }}
+            style={{ left: adjustedPosition?.x || contextMenu.x, top: adjustedPosition?.y || contextMenu.y, zIndex: Z_INDEX.CONTEXT_MENU }}
             role="menu"
             aria-label="Todo options"
           >
@@ -212,7 +263,8 @@ export const TodoItem = memo(function TodoItem({ todo, onToggle, onRemove, onEdi
               Delete
             </button>
           </motion.div>
-        </AnimatePresence>
+        </AnimatePresence>,
+        document.body
       )}
     </>
   );
@@ -223,12 +275,11 @@ export const TodoItem = memo(function TodoItem({ todo, onToggle, onRemove, onEdi
     prevProps.todo.done === nextProps.todo.done &&
     prevProps.todo.priority === nextProps.todo.priority &&
     prevProps.todo.details === nextProps.todo.details &&
-    prevProps.todo.deadline === nextProps.todo.deadline &&
-    prevProps.dragHandleProps === nextProps.dragHandleProps
+    prevProps.todo.deadline === nextProps.todo.deadline
   );
 });
 
-export function AddTodoBar({ onAdd }) {
+export function AddTodoBar({ onAdd, onNotify }) {
   const [text, setText] = useState('');
   const [priority, setPriority] = useState('Medium');
   const [details, setDetails] = useState('');
@@ -244,7 +295,7 @@ export function AddTodoBar({ onAdd }) {
       return;
     }
     if (text.trim().length > 200) {
-      alert('Todo text must be 200 characters or fewer');
+      if (onNotify) onNotify('Todo text must be 200 characters or fewer');
       return;
     }
     onAdd(text.trim(), priority, details.trim(), deadline);
@@ -308,7 +359,18 @@ export function AddTodoBar({ onAdd }) {
   );
 }
 
-export function DraggableTodoList({ todos, onToggle, onRemove, onEdit, onReorder }) {
+export function DraggableTodoList({ todos, onToggle, onRemove, onEdit, onReorder, maxHeight, timeline }) {
+  const parentRef = useRef(null);
+
+  const handleItemSizeChange = useCallback(() => {
+    if (parentRef.current) {
+      parentRef.current.style.overflowY = 'hidden';
+      requestAnimationFrame(() => {
+        if (parentRef.current) parentRef.current.style.overflowY = 'auto';
+      });
+    }
+  }, []);
+
   const handleDragEnd = (result) => {
     if (!result.destination) return;
     if (result.destination.index === result.source.index) return;
@@ -323,31 +385,39 @@ export function DraggableTodoList({ todos, onToggle, onRemove, onEdit, onReorder
       <Droppable droppableId="todos">
         {(provided, snapshot) => (
           <div
-            ref={provided.innerRef}
+            ref={(node) => {
+              provided.innerRef(node);
+              parentRef.current = node;
+            }}
             {...provided.droppableProps}
-            className={`space-y-1 transition-colors ${snapshot.isDraggingOver ? 'bg-[var(--accent-clay)]/5 rounded-lg' : ''}`}
+            className={`transition-colors ${snapshot.isDraggingOver ? 'bg-[var(--accent-clay)]/5 rounded-lg' : ''}`}
+            style={{ overflowY: 'auto', overflowX: 'hidden', maxHeight: maxHeight || 'none' }}
           >
-            {todos.map((todo, index) => (
-              <Draggable key={String(todo.id)} draggableId={String(todo.id)} index={index}>
-                {(provided, snapshot) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.draggableProps}
-                    style={provided.draggableProps.style}
-                    className={`transition-shadow ${snapshot.isDragging ? 'shadow-lg ring-2 ring-[var(--accent-clay)]/30 bg-[var(--bg-card)] rounded-lg' : ''}`}
-                  >
-                    <TodoItem
-                      todo={todo}
-                      onToggle={onToggle}
-                      onRemove={onRemove}
-                      onEdit={onEdit}
-                      dragHandleProps={provided.dragHandleProps}
-                    />
-                  </div>
-                )}
-              </Draggable>
-            ))}
-            {provided.placeholder}
+            <div className="space-y-0.5">
+              {todos.map((todo, index) => (
+                <Draggable key={String(todo.id)} draggableId={String(todo.id)} index={index}>
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.draggableProps}
+                      className={`transition-shadow ${snapshot.isDragging ? 'shadow-lg ring-2 ring-[var(--accent-clay)]/30 bg-[var(--bg-card)] rounded-lg' : ''}`}
+                      style={{ ...provided.draggableProps.style, willChange: 'transform' }}
+                    >
+                      <TodoItem
+                        todo={todo}
+                        onToggle={onToggle}
+                        onRemove={onRemove}
+                        onEdit={onEdit}
+                        dragHandleProps={provided.dragHandleProps}
+                        onExpandChange={handleItemSizeChange}
+                        timeline={timeline}
+                      />
+                    </div>
+                  )}
+                </Draggable>
+              ))}
+              {provided.placeholder}
+            </div>
           </div>
         )}
       </Droppable>
@@ -355,7 +425,7 @@ export function DraggableTodoList({ todos, onToggle, onRemove, onEdit, onReorder
   );
 }
 
-export function EditTodoModal({ todo, isOpen, onClose, onSave }) {
+export function EditTodoModal({ todo, isOpen, onClose, onSave, onNotify }) {
   const [text, setText] = useState(todo?.text || '');
   const [priority, setPriority] = useState(todo?.priority || 'Medium');
   const [details, setDetails] = useState(todo?.details || '');
@@ -395,7 +465,7 @@ export function EditTodoModal({ todo, isOpen, onClose, onSave }) {
     e.preventDefault();
     if (!text.trim()) return;
     if (text.trim().length > 200) {
-      alert('Todo text must be 200 characters or fewer');
+      if (onNotify) onNotify('Todo text must be 200 characters or fewer');
       return;
     }
     onSave({ ...todo, text: text.trim(), priority, details: details.trim(), deadline });

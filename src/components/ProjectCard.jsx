@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PropTypes from 'prop-types';
 import { STATUSES, STATUS_STYLES, STATUS_COLORS, Z_INDEX } from '@/lib/constants';
-import { formatDeadlineForDisplay, formatLastWorked } from '@/lib/dateUtils';
+import { formatLastWorked, formatDeadlineRemaining } from '@/lib/dateUtils';
 import { ProgressBar } from '@/components/ui';
 import { useConfirm } from '@/components/ConfirmModal';
 
@@ -20,6 +20,31 @@ function StatusBadge({ status }) {
 function ContextMenu({ x, y, project, onEdit, onChangeStatus, onDelete, onUnarchive, onDeletePermanent, onClose }) {
   const menuRef = useRef(null);
   const firstItemRef = useRef(null);
+  const [adjustedPosition, setAdjustedPosition] = useState({ x, y });
+
+  useEffect(() => {
+    // Measure menu and adjust position to stay in viewport
+    if (menuRef.current) {
+      const rect = menuRef.current.getBoundingClientRect();
+      let adjustedX = x;
+      let adjustedY = y;
+
+      // Check right edge
+      if (adjustedX + rect.width > window.innerWidth - 8) {
+        adjustedX = window.innerWidth - rect.width - 8;
+      }
+      // Check bottom edge
+      if (adjustedY + rect.height > window.innerHeight - 8) {
+        adjustedY = window.innerHeight - rect.height - 8;
+      }
+      // Check left edge
+      if (adjustedX < 8) adjustedX = 8;
+      // Check top edge
+      if (adjustedY < 8) adjustedY = 8;
+
+      setAdjustedPosition({ x: adjustedX, y: adjustedY });
+    }
+  }, [x, y]);
 
   useEffect(() => {
     // Focus first menu item when opened
@@ -41,11 +66,10 @@ function ContextMenu({ x, y, project, onEdit, onChangeStatus, onDelete, onUnarch
     };
   }, [onClose]);
 
-  // Adjust if near right/bottom edge
   const style = {
     position: 'fixed',
-    left: x,
-    top: y,
+    left: adjustedPosition.x,
+    top: adjustedPosition.y,
     zIndex: Z_INDEX.CONTEXT_MENU,
   };
 
@@ -148,26 +172,14 @@ function ContextMenu({ x, y, project, onEdit, onChangeStatus, onDelete, onUnarch
   );
 }
 
-function ProjectCard({ project, onClick, onUpdateProject, onDeleteProject, onDeletePermanent, onNotify }) {
+function ProjectCard({ project, onClick, onUpdateProject, onDeleteProject, onDeletePermanent, onNotify, dragHandleProps, isDragging }) {
   const confirm = useConfirm();
   const [contextMenu, setContextMenu] = useState(null);
   const cardRef = useRef(null);
   const status = project.status;
 
   const openContextMenuAt = useCallback((x, y) => {
-    const menuW = 208;
-    const menuH = 280;
-    let cx = x;
-    let cy = y;
-    if (cx + menuW > window.innerWidth - 8) {
-      cx = window.innerWidth - menuW - 8;
-    }
-    if (cy + menuH > window.innerHeight - 8) {
-      cy = window.innerHeight - menuH - 8;
-    }
-    if (cx < 4) cx = 4;
-    if (cy < 4) cy = 4;
-    setContextMenu({ x: cx, y: cy });
+    setContextMenu({ x, y });
   }, []);
 
   const handleContextMenu = useCallback((e) => {
@@ -226,12 +238,10 @@ function ProjectCard({ project, onClick, onUpdateProject, onDeleteProject, onDel
     <>
       <motion.article
         ref={cardRef}
-        layout
-        layoutId={String(project.id)}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
-        whileHover={{ y: -6, transition: { duration: 0.2, ease: 'easeOut' } }}
+        {...(isDragging ? {} : { whileHover: { y: -6, transition: { duration: 0.2, ease: 'easeOut' } } })}
         onClick={() => onClick?.(project)}
         onContextMenu={handleContextMenu}
         className="group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-clay)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)] rounded-2xl"
@@ -241,7 +251,7 @@ function ProjectCard({ project, onClick, onUpdateProject, onDeleteProject, onDel
         onKeyDown={handleKeyDown}
         data-project-id={project.id}
       >
-        <div className="relative bg-[var(--bg-card)] rounded-2xl p-6 border border-[var(--border-subtle)] shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-hover)] transition-shadow duration-300 h-full flex flex-col min-h-[280px] max-h-[280px]">
+        <div {...dragHandleProps} className="relative bg-[var(--bg-card)] rounded-2xl p-6 border border-[var(--border-subtle)] shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-hover)] transition-shadow duration-300 h-full flex flex-col min-h-[280px] max-h-[280px]">
           <div className="flex items-start justify-between mb-3">
             <StatusBadge status={status} />
             <div className="flex items-center gap-1 shrink-0 ml-3">
@@ -284,7 +294,7 @@ function ProjectCard({ project, onClick, onUpdateProject, onDeleteProject, onDel
               <span className="font-medium text-[var(--text-secondary)]">{project.todoCount}</span> todos
             </span>
             <span className="text-[var(--text-muted)]">
-              <span className="font-medium text-[var(--text-secondary)]">{project.progress === 100 ? 'done' : project.deadline}</span>
+              <span className="font-medium text-[var(--text-secondary)]">{project.progress === 100 ? 'done' : (formatDeadlineRemaining(project.deadline) || project.deadline)}</span>
             </span>
           </div>
         </div>
@@ -314,6 +324,8 @@ ProjectCard.propTypes = {
   onDeleteProject: PropTypes.func,
   onDeletePermanent: PropTypes.func,
   onNotify: PropTypes.func,
+  dragHandleProps: PropTypes.object,
+  isDragging: PropTypes.bool,
 };
 
 export default memo(ProjectCard, (prevProps, nextProps) => {
@@ -325,6 +337,8 @@ export default memo(ProjectCard, (prevProps, nextProps) => {
     prevProps.project.title === nextProps.project.title &&
     prevProps.project.currentFocus === nextProps.project.currentFocus &&
     prevProps.project.todoCount === nextProps.project.todoCount &&
-    prevProps.project.deadline === nextProps.project.deadline
+    prevProps.project.deadline === nextProps.project.deadline &&
+    prevProps.project.description === nextProps.project.description &&
+    prevProps.isDragging === nextProps.isDragging
   );
 });

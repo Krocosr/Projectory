@@ -27,6 +27,7 @@ build/
 .node_repl_history
 
 # AI / agent / MCP
+.codegraph/
 .agents/
 mcp.json
 .opencode/

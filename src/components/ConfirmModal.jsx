@@ -1,6 +1,7 @@
 'use client';
 import { useState, useCallback, useRef, createContext, useContext } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Z_INDEX } from '@/lib/constants';
 
 const ConfirmContext = createContext();
 
@@ -40,7 +41,8 @@ export function ConfirmProvider({ children }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center"
+            className="fixed inset-0 flex items-center justify-center"
+            style={{ zIndex: Z_INDEX.MODAL }}
           >
             <motion.div
               initial={{ opacity: 0 }}

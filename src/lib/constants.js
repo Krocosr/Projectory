@@ -13,6 +13,7 @@ export const EMPTY_ERROR_TIMEOUT_MS = 600;
 export const AUTO_BACKUP_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 export const STREAMER_KEY = 'projectory_streamer_mode';
 export const BACKUP_KEY = 'projectory_auto_backup';
+export const PROJECT_SORT_KEY = 'projectory_project_sort';
 
 // Z-index scale
 export const Z_INDEX = {

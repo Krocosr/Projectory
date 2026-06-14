@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PropTypes from 'prop-types';
 import { formatRelativeTime } from '@/lib/dateUtils';
@@ -10,9 +10,10 @@ const MAX_ENTRIES = MAX_SCRATCHPAD_ENTRIES;
 
 export default function ScratchpadTab({ project, onUpdateProject, onNotify }) {
   const [inputText, setInputText] = useState('');
-  const scratchpadLog = project.scratchpadLog || [];
+  const scratchpadLog = useMemo(() => project.scratchpadLog || [], [project.scratchpadLog]);
   const entryCount = scratchpadLog.length;
   const isAtLimit = entryCount >= MAX_ENTRIES;
+  const reversedLog = useMemo(() => scratchpadLog.slice().reverse(), [scratchpadLog]);
 
   const handleAddEntry = (e) => {
     e.preventDefault();
@@ -107,17 +108,17 @@ export default function ScratchpadTab({ project, onUpdateProject, onNotify }) {
               </p>
             ) : (
               <AnimatePresence initial={false}>
-                {scratchpadLog.slice().reverse().map((entry) => (
+                {reversedLog.map((entry) => (
                   <motion.div
                     key={entry.id}
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, x: -20 }}
                     transition={{ duration: 0.2 }}
-                    className="group relative px-4 py-3 rounded-xl border border-[var(--border-subtle)] bg-[#dbeafe] dark:bg-[#1e3a5f] hover:border-[var(--accent-clay)]/30 transition-all"
+                    className="group relative px-4 py-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] hover:border-[var(--accent-clay)]/30 transition-all"
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <p className="text-sm text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap flex-1">
+                      <p className="text-sm text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap flex-1" data-streamer>
                         {entry.text}
                       </p>
                       <button
