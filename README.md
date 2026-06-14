@@ -1,11 +1,11 @@
 <p align="center">
   <img src="https://img.shields.io/badge/status-active-brightgreen" alt="Status" />
-  <img src="https://img.shields.io/github/license/ariop/deadliner" alt="License" />
+  <img src="https://img.shields.io/github/license/Krocosr/Projectory" alt="License" />
   <img src="https://img.shields.io/badge/Next.js-14-black?logo=next.js" alt="Next.js 14" />
   <img src="https://img.shields.io/badge/React-18-61DAFB?logo=react" alt="React 18" />
   <img src="https://img.shields.io/badge/Tailwind-3-06B6D4?logo=tailwindcss" alt="Tailwind CSS" />
   <br/>
-  <img src="https://img.shields.io/github/actions/workflow/status/ariop/deadliner/ci.yml?branch=master" alt="CI" />
+  <img src="https://img.shields.io/github/actions/workflow/status/Krocosr/Projectory/ci.yml?branch=master" alt="CI" />
   <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs Welcome" />
 </p>
 
@@ -74,7 +74,7 @@ Projectory doesn't try to replace Jira, Notion, or Linear. Instead, it focuses o
 ## Quick Start
 
 ```bash
-git clone https://github.com/ariop/deadliner.git
+git clone https://github.com/Krocosr/Projectory.git
 cd deadliner
 npm install
 npm run dev
@@ -153,7 +153,7 @@ Projectory includes a [Model Context Protocol](https://modelcontextprotocol.io/)
 3. **Done** — your AI assistant can now manage your projects and todos.
 
 or
-> **Copy-Paste this to your agent:** Read and follow the setup instructions at [README.md](https://raw.githubusercontent.com/ariop/deadliner/master/README.md) to configure yourself.
+> **Copy-Paste this to your agent:** Read and follow the setup instructions at [README.md](https://raw.githubusercontent.com/Krocosr/Projectory/master/README.md) to configure yourself.
 
 ---
 
