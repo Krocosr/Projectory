@@ -153,7 +153,8 @@ Projectory includes a [Model Context Protocol](https://modelcontextprotocol.io/)
 3. **Done** — your AI assistant can now manage your projects and todos.
 
 or
-> **Copy-Paste this to your agent:** Read and follow the setup instructions at [README.md](https://raw.githubusercontent.com/Krocosr/Projectory/master/README.md) to configure yourself.
+**Copy-Paste this to your agent:** 
+> Read and follow the setup instructions at https://raw.githubusercontent.com/Krocosr/Projectory/master/README.md to configure yourself.
 
 ---
 
