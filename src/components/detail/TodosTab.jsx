@@ -3,6 +3,9 @@ import { useState, useMemo, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { DraggableTodoList, AddTodoBar, TodoItem } from './shared';
 import { sortTodos, SORT_OPTIONS, groupTodosByDeadline } from '@/lib/todoAggregator';
+import { motion, AnimatePresence } from 'framer-motion';
+import Input from '@/components/ui/Input';
+import Button from '@/components/ui/Button';
 
 export default function TodosTab({ project, onAddTodo, onToggleTodo, onRemoveTodo, onEditTodo, onReorderTodos, onSortChange, addTodoPosition = 'top', onNotify }) {
   const [section, setSection] = useState('Active');
