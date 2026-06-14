@@ -18,21 +18,22 @@
   Built with <b>Next.js 14</b> + <b>React 18</b>. Zero backend setup. Works offline. Syncs when online.
 </p>
 
+<p align="center">
+  <img src="/Screenshot%202026-06-14%20103843.png" width="700" alt="Dashboard screenshot" />
+</p>
+
 ---
 
-## Why Projectory?
+## Why Only Specialized Features?
 
-Tired of context-switching between a dozen tabs? Projectory gives you a **single dashboard** to track every project you're working on — from software builds to home renovations.
+Projectory doesn't try to replace Jira, Notion, or Linear. Instead, it focuses on **what's genuinely useful** for a single developer managing multiple projects:
 
-| Problem | Projectory Fix |
-|---------|---------------|
-| Projects scattered everywhere | One card-grid dashboard with search & filter |
-| Notes lost in random files | Per-project scratchpad with **auto-save** |
-| Todos buried in chat logs | Drag-and-drop todos with priorities & deadlines |
-| Deadlines sneak up on you | Clear timeline + overdue indicators |
-| Distracting bright UIs | Built-in **dark mode** that sticks |
+- **A dashboard that fits in one screen** — card grid, not a spreadsheet. See status, progress, deadline at a glance.
+- **Todos with drag & drop** — reorder, prioritize, toggle. No heavy workflow engine.
+- **Per-project scratchpad** — auto-saved notes per project, not a sprawling wiki.
+- **No feature bloat** — intentionally absent: complex permissions, Gantt charts, integrations with 50+ services. If you need those, tools like Linear or Notion are a better fit. Projectory is for **your personal workflow**, not your company's.
 
-
+---
 
 ## Features
 
@@ -45,9 +46,13 @@ Tired of context-switching between a dozen tabs? Projectory gives you a **single
 - **Dark Mode** — Toggleable, persisted, respects `prefers-color-scheme`
 - **Data Import/Export** — JSON export/import via the dashboard header
 - **Live Sync** — 3-second polling keeps the browser in sync with the API
-- **Keyboard Shortcuts** — <kbd>/</kbd> to search, <kbd>n</kbd> for new project
 - **Context Menus** — Right-click or "More" button on cards & todos
+- **Workspace Launcher** (planned) — Launch multiple apps with a single click
 - **CLI Tool** — Manage everything from the terminal: `node scripts/projectory-cli.mjs list`
+
+<p align="center">
+  <img src="/Screenshot%202026-06-14%20103919.png" width="700" alt="Project detail screenshot" />
+</p>
 
 ---
 
@@ -59,9 +64,9 @@ Tired of context-switching between a dozen tabs? Projectory gives you a **single
 | **UI** | React 18 |
 | **Styling** | [Tailwind CSS](https://tailwindcss.com/) 3 + CSS custom properties |
 | **Animation** | [Framer Motion](https://www.framer.com/motion/) |
-| **Drag & Drop** | [@hello-pangea/dnd](https://github.com/hello-pangea/dnd) |
-| **State** | `useState` + `useCallback` (minimal, no Redux) |
-| **Storage** | `localStorage` + file-based API (`data/projects.json`) |
+| **Drag & Drop** | [@hello-pangea/dnd](https://github.com/hello-pangea/dnd) + [@dnd-kit](https://dndkit.com/) |
+| **State** | Zustand (`useProjectStore`) |
+| **Storage** | `localStorage` + IndexedDB (Dexie) + file-based API |
 | **Routing** | `useSearchParams` (`?project=`) |
 
 ---
@@ -75,7 +80,7 @@ npm install
 npm run dev
 ```
 
-Open **[http://localhost:3000](http://localhost:3000)** — seed data loads automatically on first visit.
+Open **http://localhost:3000** (auto-probes next available port if busy) — seed data loads automatically on first visit.
 
 ### Production
 
@@ -83,6 +88,72 @@ Open **[http://localhost:3000](http://localhost:3000)** — seed data loads auto
 npm run build
 npm start
 ```
+
+### Docker
+
+```bash
+docker compose up --build
+```
+
+---
+
+## MCP Server (AI Integration)
+
+Projectory includes a [Model Context Protocol](https://modelcontextprotocol.io/) server that lets AI assistants (Claude, OpenCode, etc.) read and write your project data directly.
+
+### What it exposes
+
+| Tool | Description |
+|------|-------------|
+| `list_projects` | List all projects with progress & status |
+| `get_project` | Full project details including todos |
+| `list_todos` | Filtered todo list per project |
+| `add_todo` | Create a new todo |
+| `toggle_todo` | Mark/reopen a todo |
+| `update_todo` | Edit todo text, priority, or details |
+| `remove_todo` | Delete a todo |
+| `update_project` | Update project fields |
+
+### Setup
+
+1. **Start the app** — the MCP server needs the API running:
+   ```bash
+   npm run dev
+   ```
+
+2. **Configure your client** — point it to the MCP server at `mcp-server/index.mjs`:
+
+   **For Claude Desktop / OpenCode / any MCP client**, add to your `mcp.json` or client config:
+   ```json
+   {
+     "mcpServers": {
+       "deadliner": {
+         "command": "node",
+         "args": ["path/to/deadliner/mcp-server/index.mjs"]
+       }
+     }
+   }
+   ```
+
+   The server auto-discovers the API port by scanning common ports. If your API is on a non-standard port, set the `DEADLINER_API` env var:
+   ```json
+   {
+     "mcpServers": {
+       "deadliner": {
+         "command": "node",
+         "args": ["path/to/deadliner/mcp-server/index.mjs"],
+         "env": { "DEADLINER_API": "http://localhost:7000/api/projects" }
+       }
+     }
+   }
+   ```
+
+   If you already have this project open in OpenCode, the included `.opencode/` config and `mcp.json` auto-register the MCP server.
+
+3. **Done** — your AI assistant can now manage your projects and todos.
+
+or
+> **Copy-Paste this to your agent:** Read and follow the setup instructions at [README.md](https://raw.githubusercontent.com/ariop/deadliner/master/README.md) to configure yourself.
 
 ---
 
@@ -116,7 +187,7 @@ src/
 │   ├── data.js             # Seed data, default form, project factory
 │   └── page.js             # Single-page state hub & routing
 ├── components/
-│   ├── detail/              # Sub-components for the detail view
+│   ├── detail/              # Detail view sub-components
 │   ├── DashboardHeader.jsx
 │   ├── NewProjectModal.jsx
 │   ├── ProjectCard.jsx
@@ -124,22 +195,34 @@ src/
 ├── lib/
 │   ├── constants.js        # Statuses, colors, z-index tokens
 │   ├── dateUtils.js        # Date formatting helpers
-│   ├── fileStorage.js      # Server-side file I/O for API
+│   ├── fileStorage.js      # Server-side file I/O
 │   ├── migrations.js       # localStorage schema migration
-│   └── storage.js          # localStorage CRUD + API sync
+│   ├── storage.js          # localStorage CRUD + API sync
+│   ├── db.js               # IndexedDB (Dexie) layer
+│   ├── validation.js       # Zod schemas for API validation
+│   └── search.js           # Full-text search
 data/
 └── projects.json           # API data file (gitignored)
+mcp-server/
+├── package.json            # MCP server dependencies
+└── index.mjs               # MCP server (8 tools)
+mcp.json                    # MCP client config
 ```
 
 ---
 
-## Project Lifecycle
+## Project Status Sections
 
-```
-Active -> Paused -> Incubating -> Waiting -> Finished -> Archived
-```
+Projects are organized by status — each acts as a section, not a lifecycle step:
 
-Each status has a distinct color badge and style. Move projects through the pipeline from the Settings tab.
+- **Active** — Currently being worked on
+- **Paused** — On hold, will resume
+- **Incubating** — Early idea, not yet started
+- **Waiting** — Blocked by something external
+- **Finished** — Done
+- **Archived** — Hidden, auto-purges after 7 days
+
+Each status has a distinct color badge. Filter or sort by status from the dashboard.
 
 ---
 

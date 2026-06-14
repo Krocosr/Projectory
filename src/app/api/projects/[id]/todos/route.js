@@ -1,16 +1,30 @@
 import { NextResponse } from 'next/server';
 import { readProjects, writeProjects } from '@/lib/fileStorage';
 import { createTimelineEntry, recalculateProject } from '@/lib/storage';
+import { CreateTodoSchema, validateBody } from '@/lib/validation';
+import { rateLimitResponse } from '@/lib/rateLimit';
 
+/**
+ * POST /api/projects/[id]/todos
+ * Add a todo to a project
+ */
 export async function POST(request, { params }) {
   try {
-    const { id } = params;
-    const body = await request.json();
-    const { text, priority = 'Medium', details = '' } = body;
+    const rateLimited = rateLimitResponse('todos:POST');
+    if (rateLimited) return rateLimited;
 
-    if (!text || !text.trim()) {
-      return NextResponse.json({ error: 'Todo text is required' }, { status: 400 });
+    // Validate body
+    const body = await request.json();
+    const validation = validateBody(CreateTodoSchema, body);
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: 'Invalid todo data', details: validation.error },
+        { status: 400 }
+      );
     }
+
+    const { text, priority = 'Medium', details = '' } = validation.data;
+    const { id } = params;
 
     const projects = readProjects();
     const index = projects.findIndex((p) => String(p.id) === id);
@@ -35,6 +49,12 @@ export async function POST(request, { params }) {
 
     return NextResponse.json({ todo, project: projects[index] }, { status: 200 });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to add todo' }, { status: 500 });
+    console.error('POST /api/projects/[id]/todos error:', error);
+
+    if (error instanceof SyntaxError) {
+      return NextResponse.json({ error: 'Invalid JSON in request body' }, { status: 400 });
+    }
+
+    return NextResponse.json({ error: 'Failed to add todo', details: error.message }, { status: 500 });
   }
 }
