@@ -1,5 +1,5 @@
 ﻿'use client';
-import { useState, useMemo, useEffect, useCallback, useRef, useDeferredValue, Suspense, lazy } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef, useDeferredValue, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { DndContext, closestCorners } from '@dnd-kit/core';
 import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable';
@@ -18,7 +18,7 @@ import { NewProjectCard } from '@/components/NewProjectCard';
 import { EmptyPortfolio } from '@/components/EmptyPortfolio';
 import { CardSkeleton } from '@/components/CardSkeleton';
 import { SortableProjectCard } from '@/components/SortableProjectCard';
-import { ProjectDetailSkeleton } from '@/components/ProjectDetailSkeleton';
+import ProjectDetailView from '@/components/ProjectDetailView';
 
 // Hooks
 import { useProjectPolling } from '@/hooks/useProjectPolling';
@@ -34,18 +34,7 @@ import { searchProjects } from '@/lib/search';
 import { useConfirm } from '@/components/ConfirmModal';
 import { AUTO_BACKUP_INTERVAL_MS } from '@/lib/constants';
 
-const projectDetailViewImport = import('@/components/ProjectDetailView').catch(err => {
-  console.error('Failed to load ProjectDetailView:', err);
-  return { default: () => <div className="bg-[var(--bg-card)] rounded-2xl p-6 border border-red-500/20 min-h-[400px] flex items-center justify-center text-sm text-red-500">Failed to load project details</div> };
-});
-const ProjectDetailView = lazy(() => projectDetailViewImport);
 
-if (typeof window !== 'undefined') {
-  const _sp = new URLSearchParams(window.location.search);
-  if (_sp.get('project')) {
-    projectDetailViewImport.catch(() => {});
-  }
-}
 
 function DashboardContent() {
   const searchParams = useSearchParams();
@@ -464,22 +453,20 @@ function DashboardContent() {
                 errorMessage="Failed to load project details. Try going back to the dashboard."
                 onReset={handleBack}
               >
-                <Suspense fallback={<ProjectDetailSkeleton />}>
-                  <ProjectDetailView
-                    project={selectedProject}
-                    onBack={handleBack}
-                    onUpdateProject={handleUpdateProject}
-                    onDeleteProject={handleDeleteProject}
-                    onNotify={addToast}
-                    isDarkMode={isDarkMode}
-                    onToggleDarkMode={setIsDarkMode}
-                    isStreamerMode={isStreamerMode}
-                    onToggleStreamerMode={handleToggleStreamerMode}
-                    onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-                    activeTodosCount={aggregatedTodos.length}
-                    scrollContainerRef={scrollContainerRef}
-                  />
-                </Suspense>
+                <ProjectDetailView
+                  project={selectedProject}
+                  onBack={handleBack}
+                  onUpdateProject={handleUpdateProject}
+                  onDeleteProject={handleDeleteProject}
+                  onNotify={addToast}
+                  isDarkMode={isDarkMode}
+                  onToggleDarkMode={setIsDarkMode}
+                  isStreamerMode={isStreamerMode}
+                  onToggleStreamerMode={handleToggleStreamerMode}
+                  onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+                  activeTodosCount={aggregatedTodos.length}
+                  scrollContainerRef={scrollContainerRef}
+                />
               </ErrorBoundary>
             </div>
           ) : (

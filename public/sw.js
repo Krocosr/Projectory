@@ -17,6 +17,9 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.pathname.startsWith('/api/') || event.request.mode === 'navigate') {
     event.respondWith(networkFirst(event.request));
+  } else if (url.pathname.startsWith('/_next/static/') && url.pathname.match(/\.(js|css)$/)) {
+    // ponytail: no-cache for chunks — cache-first would serve stale after deploy
+    event.respondWith(networkFirst(event.request));
   } else {
     event.respondWith(staleWhileRevalidate(event.request));
   }
