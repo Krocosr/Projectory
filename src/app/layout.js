@@ -1,6 +1,7 @@
 import { Fraunces, DM_Sans } from 'next/font/google';
 import './globals.css';
 import { ConfirmProvider } from '@/components/ConfirmModal';
+import GlobalErrorBoundary from '@/components/GlobalErrorBoundary';
 
 const fraunces = Fraunces({
   subsets: ['latin'],
@@ -47,9 +48,11 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body>
-        <ConfirmProvider>
-          {children}
-        </ConfirmProvider>
+        <GlobalErrorBoundary>
+          <ConfirmProvider>
+            {children}
+          </ConfirmProvider>
+        </GlobalErrorBoundary>
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -58,6 +61,19 @@ export default function RootLayout({ children }) {
                   navigator.serviceWorker.register('/sw.js');
                 });
               }
+            `,
+          }}
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                var _rp = localStorage.getItem('projectory_restore_path');
+                if (_rp && _rp !== location.pathname + location.search) {
+                  localStorage.removeItem('projectory_restore_path');
+                  history.replaceState(null, '', _rp);
+                }
+              } catch(_){}
             `,
           }}
         />
