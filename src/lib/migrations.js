@@ -1,16 +1,4 @@
-/**
- * Data Migration System
- * 
- * Handles versioned migrations for localStorage data structure changes.
- * Each migration function transforms data from one version to the next.
- * 
- * Version History:
- * - v1: Initial structure (implicit, no version field)
- * - v2: Added version field, standardized todo structure
- * - v3: (Future) Reserved for next breaking change
- */
-
-const CURRENT_VERSION = 2;
+const CURRENT_VERSION = 3;
 
 /**
  * Migration from v1 (no version) to v2 (with version field)
@@ -40,11 +28,20 @@ function migrateV1toV2(data) {
  * Registry of all migration functions
  * Key is the target version, value is the migration function
  */
+function migrateV2toV3(data) {
+  if (!Array.isArray(data)) return data;
+  return data.map(project => ({
+    ...project,
+    launchItems: project.launchItems || [],
+    activityLog: project.activityLog || [],
+    timerConfig: project.timerConfig || { mode: 'pomodoro', workDuration: 25, shortBreakDuration: 5, longBreakDuration: 15, sessionsBeforeLongBreak: 4, soundEnabled: true, autoCycle: true, checkpointsEnabled: false, checkpointInterval: 15 },
+    workingDir: project.workingDir || '',
+  }));
+}
+
 const MIGRATIONS = {
   2: migrateV1toV2,
-  // Future migrations:
-  // 3: migrateV2toV3,
-  // 4: migrateV3toV4,
+  3: migrateV2toV3,
 };
 
 /**

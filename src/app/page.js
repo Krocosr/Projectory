@@ -13,10 +13,12 @@ import NewProjectModal from '@/components/NewProjectModal';
 import ToastContainer, { useToast } from '@/components/Toast';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import ActiveTodosSidebar from '@/components/ActiveTodosSidebar';
+import RunningSessionBar from '@/components/RunningSessionBar';
 import { NewProjectButton } from '@/components/NewProjectButton';
 import { NewProjectCard } from '@/components/NewProjectCard';
 import { EmptyPortfolio } from '@/components/EmptyPortfolio';
 import { CardSkeleton } from '@/components/CardSkeleton';
+import { ProjectDetailSkeleton } from '@/components/ProjectDetailSkeleton';
 import { SortableProjectCard } from '@/components/SortableProjectCard';
 import ProjectDetailView from '@/components/ProjectDetailView';
 
@@ -75,6 +77,9 @@ function DashboardContent() {
     mergeProjects,
     toggleTodoInProject,
     reorderProjects,
+    runningSessions,
+    setRunningSession,
+    removeRunningSession,
   } = useProjectStore();
 
   const lastFocusedCardIdRef = useRef(null);
@@ -435,9 +440,83 @@ function DashboardContent() {
     addToast(isStreamerMode ? 'Streamer mode off' : 'Streamer mode on - sensitive content hidden');
   }, [isStreamerMode, setIsStreamerMode, addToast]);
 
+  const fabLaunch = selectedProject?.launchItems?.length > 0;
+  const fabRunning = fabLaunch && runningSessions[selectedProject?.id]?.status === 'running';
+
+  const handleFabLaunch = useCallback(() => {
+    const p = selectedProject;
+    if (!p || !p.launchItems?.length) return;
+
+    const now = new Date().toISOString();
+    const itemIds = p.launchItems.map((it) => it.id);
+
+    const logEntries = itemIds.map((id) => {
+      const item = p.launchItems.find((it) => it.id === id);
+      return {
+        itemId: id,
+        itemName: item?.name || 'Unknown',
+        startTime: now,
+        source: 'launch',
+      };
+    });
+
+    const newLog = [...(p.activityLog || []), ...logEntries];
+    const newTimeline = [...(p.timeline || []), { date: now, action: `Launched ${p.launchItems.length} app(s)` }];
+    handleUpdateProject({ ...p, activityLog: newLog, timeline: newTimeline });
+
+    setRunningSession(p.id, {
+      status: 'running',
+      launchItemIds: itemIds,
+      startedAt: now,
+    });
+
+    addToast(`Started tracking ${p.launchItems.length} app(s)`);
+  }, [selectedProject, handleUpdateProject, setRunningSession, addToast]);
+
+  const handleFabStop = useCallback(() => {
+    const p = selectedProject;
+    if (!p) return;
+
+    const session = runningSessions[p.id];
+    const now = new Date().toISOString();
+    const duration = session?.startedAt
+      ? Math.floor((Date.now() - new Date(session.startedAt).getTime()) / 1000)
+      : 0;
+
+    if (duration > 0) {
+      const updatedLog = (p.activityLog || []).map((entry) =>
+        entry.startTime === session?.startedAt && !entry.endTime
+          ? { ...entry, endTime: now, duration }
+          : entry
+      );
+      const newTimeline = [...(p.timeline || []), {
+        date: now,
+        action: `Stopped session (${Math.round(duration / 60)}m)`,
+      }];
+      handleUpdateProject({ ...p, activityLog: updatedLog, timeline: newTimeline });
+    }
+
+    removeRunningSession(p.id);
+    addToast('Session stopped');
+  }, [selectedProject, runningSessions, handleUpdateProject, removeRunningSession, addToast]);
+
+  const handleSessionNavigate = useCallback((projectId) => {
+    const project = projects.find((p) => String(p.id) === String(projectId));
+    if (project) {
+      router.push(`/?project=${projectId}`, { scroll: false });
+    }
+  }, [projects, router]);
+
+  const fabMode = fabRunning ? 'stop' : fabLaunch ? 'launch' : 'add';
+
   return (
     <div className={`min-h-screen flex overflow-hidden${isStreamerMode ? ' streamer-mode' : ''}`}>
-      <NewProjectButton onClick={() => setIsNewModalOpen(true)} />
+      <NewProjectButton
+        mode={fabMode}
+        onClick={() => setIsNewModalOpen(true)}
+        onLaunch={handleFabLaunch}
+        onStop={handleFabStop}
+      />
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
       <div 
@@ -445,7 +524,7 @@ function DashboardContent() {
         className={`flex-1 min-w-0 transition-all duration-300 relative ${isProjectDragging ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden'}`} 
         style={{ marginRight: isSidebarOpen ? '380px' : '0' }}
       >
-        <div className="max-w-6xl mx-auto px-6 py-10">
+        <div className="px-6 py-10">
           {selectedProject ? (
             <div key={`detail-${selectedProject.id}`}>
               <ErrorBoundary
@@ -469,6 +548,8 @@ function DashboardContent() {
                 />
               </ErrorBoundary>
             </div>
+          ) : projectParam && !ready ? (
+            <ProjectDetailSkeleton />
           ) : (
             <div key="dashboard">
               <DashboardHeader
@@ -553,6 +634,33 @@ function DashboardContent() {
         onToggleTodo={handleToggleTodoFromSidebar}
         onNavigateToProject={handleSidebarNavigate}
         onReorderTodos={handleSidebarReorder}
+      />
+
+      <RunningSessionBar
+        runningSessions={runningSessions}
+        projects={projects}
+        onNavigate={handleSessionNavigate}
+        onStopSession={(projectId) => {
+          const p = projects.find((pr) => String(pr.id) === String(projectId));
+          if (p) {
+            const session = runningSessions[projectId];
+            const now = new Date().toISOString();
+            const duration = session?.startedAt
+              ? Math.floor((Date.now() - new Date(session.startedAt).getTime()) / 1000)
+              : 0;
+            if (duration > 0) {
+              const updatedLog = (p.activityLog || []).map((entry) =>
+                entry.startTime === session?.startedAt && !entry.endTime
+                  ? { ...entry, endTime: now, duration }
+                  : entry
+              );
+              const newTimeline = [...(p.timeline || []), { date: now, action: `Stopped session (${Math.round(duration / 60)}m)` }];
+              handleUpdateProject({ ...p, activityLog: updatedLog, timeline: newTimeline });
+            }
+            removeRunningSession(projectId);
+            addToast('Session stopped');
+          }
+        }}
       />
 
       <NewProjectModal

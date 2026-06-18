@@ -3,12 +3,11 @@ import { useState, useEffect, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { Input, Textarea, Button, SectionHeader } from '@/components/ui';
 import { AUTO_SAVE_DEBOUNCE_MS } from '@/lib/constants';
+import { pickFile as desktopPickFile, isDesktop } from '@/lib/desktop';
 
 export default function WorkspaceTab({ project, onUpdateProject, onNotify }) {
   const [noteText, setNoteText] = useState(project.notes || '');
   const [saving, setSaving] = useState(false);
-  const [newLinkUrl, setNewLinkUrl] = useState('');
-  const [newLinkTitle, setNewLinkTitle] = useState('');
   const [assetName, setAssetName] = useState('');
   const [assetUrl, setAssetUrl] = useState('');
   const projectRef = useRef(project);
@@ -49,64 +48,77 @@ export default function WorkspaceTab({ project, onUpdateProject, onNotify }) {
     onNotify('Notes saved');
   };
 
-  const handleAddLink = (e) => {
-    e.preventDefault();
-    if (!newLinkUrl.trim() || !newLinkTitle.trim()) return;
-    try {
-      new URL(newLinkUrl.trim());
-    } catch {
-      onNotify('Invalid URL');
-      return;
-    }
-    const updated = {
-      ...project,
-      links: [...(project.links || []), { url: newLinkUrl.trim(), title: newLinkTitle.trim() }],
-    };
-    onUpdateProject(updated);
-    onNotify('Link added');
-    setNewLinkUrl('');
-    setNewLinkTitle('');
+  const mergeLinksIntoAssets = (p) => {
+    const links = p.links || [];
+    if (links.length === 0) return p;
+    const existingAssets = p.assets || [];
+    const newAssets = links.map((link) => ({
+      name: link.title,
+      url: link.url,
+      addedAt: new Date().toISOString(),
+    }));
+    return { ...p, links: [], assets: [...existingAssets, ...newAssets] };
   };
 
-  const handleRemoveLink = (index) => {
-    const updated = {
-      ...project,
-      links: (project.links || []).filter((_, i) => i !== index),
+  const handlePickFile = async () => {
+    if (isDesktop()) {
+      const result = await desktopPickFile();
+      if (result) setAssetUrl(result);
+      return;
+    }
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.onchange = () => {
+      const file = input.files[0];
+      if (file) setAssetUrl(file.name);
     };
-    onUpdateProject(updated);
-    onNotify('Link removed');
+    input.click();
   };
 
   const handleAddAsset = (e) => {
     e.preventDefault();
     if (!assetName.trim()) return;
-    if (assetUrl.trim()) {
-      try {
-        new URL(assetUrl.trim());
-      } catch {
-        onNotify('Invalid asset URL');
-        return;
-      }
-    }
-    const newAsset = { name: assetName.trim(), url: assetUrl.trim(), addedAt: new Date().toISOString() };
-    const updated = {
-      ...project,
-      assets: [...(project.assets || []), newAsset],
+
+    let p = projectRef.current;
+    p = mergeLinksIntoAssets(p);
+
+    const newAsset = {
+      name: assetName.trim(),
+      url: assetUrl.trim(),
+      addedAt: new Date().toISOString(),
     };
-    onUpdateProject(updated);
+    const updated = {
+      ...p,
+      assets: [...(p.assets || []), newAsset],
+    };
+    onUpdateRef.current(updated);
     onNotify('Asset added');
     setAssetName('');
     setAssetUrl('');
   };
 
   const handleRemoveAsset = (index) => {
+    let p = projectRef.current;
+    p = mergeLinksIntoAssets(p);
     const updated = {
-      ...project,
-      assets: (project.assets || []).filter((_, i) => i !== index),
+      ...p,
+      assets: (p.assets || []).filter((_, i) => i !== index),
     };
-    onUpdateProject(updated);
+    onUpdateRef.current(updated);
     onNotify('Asset removed');
   };
+
+  const isUrl = (str) => {
+    try {
+      new URL(str);
+      return true;
+    } catch { return false; }
+  };
+
+  const allAssets = [
+    ...((project.links || []).map((link) => ({ name: link.title, url: link.url, addedAt: '', _isLink: true }))),
+    ...(project.assets || []),
+  ];
 
   return (
     <div className="space-y-6">
@@ -143,68 +155,6 @@ export default function WorkspaceTab({ project, onUpdateProject, onNotify }) {
 
       <div>
         <SectionHeader
-          icon={<svg className="w-4 h-4 text-[var(--accent-slate)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>}
-          label="Links"
-          color="var(--accent-slate)"
-        />
-        <div className="pl-10 space-y-3">
-          <form onSubmit={handleAddLink} className="flex gap-2">
-            <Input
-              type="text"
-              value={newLinkTitle}
-              onChange={(e) => setNewLinkTitle(e.target.value)}
-              placeholder="Title"
-              className="flex-1"
-              aria-label="Link title"
-            />
-            <Input
-              type="url"
-              value={newLinkUrl}
-              onChange={(e) => setNewLinkUrl(e.target.value)}
-              placeholder="URL"
-              aria-label="Link URL"
-              className="flex-1"
-            />
-            <Button
-              type="submit"
-              variant="gradient"
-              className="px-3"
-              style={{ background: 'var(--accent-slate)' }}
-            >
-              Add
-            </Button>
-          </form>
-          <div className="space-y-2">
-            {(project.links || []).length > 0 ? project.links.map((link, i) => (
-              <div key={link.url + link.title + i} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-[var(--border-subtle)]/40 group">
-                  <a
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-[var(--accent-slate)] hover:text-[var(--accent-slate-light)] transition-colors truncate"
-                    data-streamer
-                  >
-                    {link.title || link.url}
-                  </a>
-                <button
-                  onClick={() => handleRemoveLink(i)}
-                  className="opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-[var(--accent-clay)] transition-all p-1"
-                  aria-label="Remove link"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            )) : (
-              <p className="text-xs text-[var(--text-muted)]">No links saved</p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <SectionHeader
           icon={<svg className="w-4 h-4" style={{ color: '#5A8F6C' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}
           label="Assets"
           color="#5A8F6C"
@@ -215,48 +165,59 @@ export default function WorkspaceTab({ project, onUpdateProject, onNotify }) {
               type="text"
               value={assetName}
               onChange={(e) => setAssetName(e.target.value)}
-              placeholder="Asset name"
+              placeholder="Name"
               className="flex-1"
               aria-label="Asset name"
             />
-            <Input
-              type="text"
-              value={assetUrl}
-              onChange={(e) => setAssetUrl(e.target.value)}
-              placeholder="URL or path (optional)"
-              aria-label="Asset URL"
-              className="flex-1"
-            />
-            <Button
-              type="submit"
-              variant="gradient"
-              className="px-3"
-              style={{ background: '#5A8F6C' }}
-            >
-              Add
-            </Button>
+            <div className="flex gap-1 flex-1">
+              <Input
+                type="text"
+                value={assetUrl}
+                onChange={(e) => setAssetUrl(e.target.value)}
+                placeholder="URL or path"
+                aria-label="Asset URL or path"
+                className="flex-1"
+              />
+              <button type="button" onClick={handlePickFile} className="px-2.5 py-1.5 rounded-lg bg-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)] text-xs font-medium transition-colors shrink-0">
+                Browse
+              </button>
+            </div>
+            <Button type="submit" variant="gradient" className="px-3" style={{ background: '#5A8F6C' }}>Add</Button>
           </form>
           <div className="space-y-2">
-            {(project.assets || []).length > 0 ? project.assets.map((asset, i) => (
+            {allAssets.length > 0 ? allAssets.map((asset, i) => (
               <div key={asset.name + (asset.url || '') + i} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-[var(--border-subtle)]/40 group">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#5A8F6C] shrink-0" />
-                  {asset.url ? (
-                    <a
-                      href={asset.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-[#5A8F6C] hover:underline truncate"
-                      data-streamer
-                    >
+                  {asset.url && isUrl(asset.url) ? (
+                    <a href={asset.url} target="_blank" rel="noopener noreferrer" className="text-sm text-[#5A8F6C] hover:underline truncate" data-streamer>
                       {asset.name}
                     </a>
                   ) : (
                     <span className="text-sm text-[var(--text-secondary)] truncate" data-streamer>{asset.name}</span>
                   )}
+                  {asset.url && !isUrl(asset.url) && (
+                    <span className="text-[10px] text-[var(--text-muted)] font-mono truncate max-w-[200px]">{asset.url}</span>
+                  )}
+                  {asset._isLink && (
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[var(--accent-slate)]/10 text-[var(--accent-slate)]">link</span>
+                  )}
                 </div>
                 <button
-                  onClick={() => handleRemoveAsset(i)}
+                  onClick={() => {
+                    if (asset._isLink) {
+                      let p = projectRef.current;
+                      p = mergeLinksIntoAssets(p);
+                      const idx = (p.links || []).findIndex((l) => l.url === asset.url && l.title === asset.name);
+                      if (idx >= 0) {
+                        const updated = { ...p, links: p.links.filter((_, j) => j !== idx) };
+                        onUpdateRef.current(updated);
+                        onNotify('Link removed');
+                      }
+                    } else {
+                      handleRemoveAsset(i - (project.links || []).length);
+                    }
+                  }}
                   className="opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-[var(--accent-clay)] transition-all p-1 shrink-0"
                   aria-label="Remove asset"
                 >
@@ -266,7 +227,7 @@ export default function WorkspaceTab({ project, onUpdateProject, onNotify }) {
                 </button>
               </div>
             )) : (
-              <p className="text-xs text-[var(--text-muted)]">No assets yet — add files, designs, or reference links</p>
+              <p className="text-xs text-[var(--text-muted)]">No assets yet — add files, designs, URLs, or paths</p>
             )}
           </div>
         </div>

@@ -6,7 +6,7 @@ import PropTypes from 'prop-types';
 import { PRIORITY_STYLES } from '@/lib/constants';
 import { formatDeadlineForDisplay } from '@/lib/dateUtils';
 import { Input } from '@/components/ui';
-import { TODO_SORT_OPTIONS, sortTodos } from '@/lib/todoAggregator';
+import { SORT_OPTIONS, sortTodos } from '@/lib/todoAggregator';
 
 function TodoItem({ todo, onToggle, onNavigate, dragHandleProps }) {
   const truncateProjectName = (name) => {
@@ -145,7 +145,7 @@ export default function ActiveTodosSidebar({ isOpen, todos, onToggleTodo, onNavi
                 className="text-[11px] px-1.5 py-0.5 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-secondary)] outline-none focus:ring-2 focus:ring-[var(--accent-clay)]/30 appearance-none cursor-pointer hover:border-[var(--text-muted)] transition-colors"
                 aria-label="Sort todos"
               >
-                {TODO_SORT_OPTIONS.map((opt) => (
+                {SORT_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </select>

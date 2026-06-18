@@ -35,7 +35,7 @@ const LinkSchema = z.object({
 // Asset schema
 const AssetSchema = z.object({
   name: z.string().min(1, 'Asset name is required').max(200, 'Name too long'),
-  url: z.string().url('Invalid URL').optional(),
+  url: z.string().max(2000).optional().default(''),
   addedAt: DateTimeString,
 });
 
@@ -60,6 +60,41 @@ const PomodoroLogSchema = z.object({
   type: z.enum(['focus', 'break']),
 });
 
+// Timer config schema
+const TimerConfigSchema = z.object({
+  mode: z.enum(['pomodoro', 'countdown', 'countup']).default('pomodoro'),
+  workDuration: z.number().min(1).max(180).default(25),
+  shortBreakDuration: z.number().min(1).max(30).default(5),
+  longBreakDuration: z.number().min(1).max(60).default(15),
+  sessionsBeforeLongBreak: z.number().min(1).max(20).default(4),
+  soundEnabled: z.boolean().default(true),
+  autoCycle: z.boolean().default(true),
+  checkpointsEnabled: z.boolean().default(false),
+  checkpointInterval: z.number().min(1).max(60).default(15),
+});
+
+// Launch item schema
+const LaunchItemSchema = z.object({
+  id: z.union([z.number(), z.string()]),
+  name: z.string().min(1).max(200),
+  type: z.enum(['app', 'command']),
+  path: z.string().max(2000).default(''),
+  command: z.string().max(2000).optional().default(''),
+  workingDir: z.string().max(2000).optional().default(''),
+  wait: z.boolean().default(false),
+  killOnStop: z.boolean().default(true),
+});
+
+// Activity log entry schema
+const ActivityLogSchema = z.object({
+  itemId: z.union([z.number(), z.string()]),
+  itemName: z.string().max(200),
+  startTime: DateTimeString,
+  endTime: DateTimeString.nullable().optional(),
+  duration: z.number().optional(),
+  source: z.enum(['launch', 'pomodoro', 'countdown', 'countup']).default('launch'),
+});
+
 // Project schema (full)
 export const ProjectSchema = z.object({
   id: z.union([z.number(), z.string()]),
@@ -75,9 +110,13 @@ export const ProjectSchema = z.object({
   timeline: z.array(TimelineEntrySchema).optional().default([]),
   scratchpadLog: z.array(ScratchpadLogSchema).optional().default([]),
   pomodoroLog: z.array(PomodoroLogSchema).optional().default([]),
+  launchItems: z.array(LaunchItemSchema).optional().default([]),
+  activityLog: z.array(ActivityLogSchema).optional().default([]),
+  timerConfig: TimerConfigSchema.optional().default({ mode: 'pomodoro', workDuration: 25, shortBreakDuration: 5, longBreakDuration: 15, sessionsBeforeLongBreak: 4, soundEnabled: true, autoCycle: true, checkpointsEnabled: false, checkpointInterval: 15 }),
   tags: z.array(z.string()).optional().default([]),
   archivedAt: DateTimeString.optional(),
   sortState: z.string().optional(),
+  workingDir: z.string().max(2000).optional().default(''),
   // Computed fields (excluded from input validation)
   progress: z.number().min(0).max(100).optional(),
   todoCount: z.number().min(0).optional(),

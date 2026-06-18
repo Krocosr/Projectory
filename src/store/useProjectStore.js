@@ -22,6 +22,9 @@ const useProjectStore = create((set, get) => ({
   isStreamerMode: false,
   isSidebarOpen: false,
   isNewModalOpen: false,
+  runningSessions: typeof window !== 'undefined'
+    ? (() => { try { return JSON.parse(localStorage.getItem('projectory_running_sessions') || '{}'); } catch { return {}; } })()
+    : {},
 
   // Actions
   setProjects: (projects) => set({ projects }),
@@ -59,6 +62,21 @@ const useProjectStore = create((set, get) => ({
   setIsSidebarOpen: (isOpen) => set({ isSidebarOpen: isOpen }),
   
   setIsNewModalOpen: (isOpen) => set({ isNewModalOpen: isOpen }),
+
+  setRunningSession: (projectId, session) => set((state) => {
+    const next = { ...state.runningSessions, [projectId]: session };
+    if (typeof window !== 'undefined') localStorage.setItem('projectory_running_sessions', JSON.stringify(next));
+    return { runningSessions: next };
+  }),
+
+  removeRunningSession: (projectId) => set((state) => {
+    const rest = {};
+    Object.keys(state.runningSessions).forEach((key) => {
+      if (key !== projectId) rest[key] = state.runningSessions[key];
+    });
+    if (typeof window !== 'undefined') localStorage.setItem('projectory_running_sessions', JSON.stringify(rest));
+    return { runningSessions: rest };
+  }),
 
   // Complex actions
   initializeProjects: () => {
