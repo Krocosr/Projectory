@@ -28,8 +28,6 @@ build/
 
 # Tauri
 src-tauri/target/
-src-tauri/target/release
-src-tauri/target/debug
 
 # AI / agent / MCP
 .codegraph/
