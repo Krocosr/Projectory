@@ -520,103 +520,159 @@ export default function ActivityTab({ project, onUpdateProject, onNotify }) {
 
   return (
     <div>
-      <SectionHeader label="Timer" />
-
-      <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-6 mb-6">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="flex gap-1 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-lg p-0.5">
-            {['pomodoro', 'countdown', 'countup'].map((mode) => (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div>
+          <SectionHeader
+            label="Apps"
+            action={
               <button
-                key={mode}
-                onClick={() => { setTimerMode(mode); setTimerState('idle'); setShowSettings(false); }}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                  timerMode === mode
-                    ? 'bg-[var(--accent-clay)]/10 text-[var(--accent-clay)]'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
-                }`}
+                onClick={openAddLaunch}
+                className="text-xs px-3 py-1.5 rounded-lg bg-[var(--accent-clay)]/10 text-[var(--accent-clay)] hover:bg-[var(--accent-clay)]/20 transition-colors font-medium"
               >
-                {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                + Add Item
               </button>
-            ))}
-          </div>
-
-          <div className="flex-1" />
-
-          <button
-            onClick={() => setShowSettings(!showSettings)}
-            className={`p-1.5 rounded-lg transition-colors ${
-              showSettings
-                ? 'bg-[var(--accent-clay)]/10 text-[var(--accent-clay)]'
-                : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--border-subtle)]/50'
-            }`}
-            title="Timer settings"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </button>
+            }
+          />
+          {launchItems.length === 0 ? (
+            <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-6">
+              <p className="text-sm text-[var(--text-muted)] text-center py-8">No apps configured.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {launchItems.map((item, idx) => (
+                <div key={item.id} className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
+                      item.type === 'command' ? 'bg-green-500/10 text-green-500' : 'bg-indigo-500/10 text-indigo-400'
+                    }`}>
+                      {item.type === 'command' ? '>_' : 'A'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-[var(--text-primary)] truncate">{item.name}</p>
+                      <p className="text-xs text-[var(--text-muted)] truncate font-mono">
+                        {item.type === 'command' ? item.command : item.path}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => handleLaunchItem(item)} className="text-xs px-2.5 py-1 rounded-lg bg-[var(--accent-clay)]/10 text-[var(--accent-clay)] hover:bg-[var(--accent-clay)]/20 transition-colors font-medium" title={`Launch ${item.name}`}>Run</button>
+                      <button onClick={() => toggleKillOnStop(item.id)} title={item.killOnStop ? 'Will kill on stop' : 'Will not kill on stop'} className={`text-xs px-2 py-0.5 rounded-full transition-colors ${item.killOnStop ? 'bg-red-500/10 text-red-400' : 'bg-[var(--border-subtle)] text-[var(--text-muted)]'}`}>{item.killOnStop ? 'Kill' : 'No-kill'}</button>
+                      {idx > 0 && <button onClick={() => handleMoveUp(idx)} className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg></button>}
+                      {idx < launchItems.length - 1 && <button onClick={() => handleMoveDown(idx)} className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg></button>}
+                      <button onClick={() => openEditLaunch(item.id)} className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
+                      <button onClick={() => handleRemoveLaunch(item.id)} className="p-1 text-[var(--text-muted)] hover:text-red-400 transition-colors"><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                    </div>
+                  </div>
+                  {item.type === 'command' && item.wait && (
+                    <div className="mt-2 flex items-center gap-1.5">
+                      <span className="text-[10px] font-medium text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded-full">Waits for completion</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        <div className="text-center">
-          {phaseLabel && (
-            <p className="text-xs font-medium text-[var(--text-muted)] mb-1 uppercase tracking-wider">
-              {phaseLabel}
-              {timerMode === 'pomodoro' && pomodoroPhase === 'focus' && (
-                <span className="ml-2 text-[var(--accent-clay)]">
-                  C{pomodoroCycle + 1} #{pomodoroSessionCount + 1}
-                </span>
+        <div>
+          <SectionHeader label="Timer" />
+
+          <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="flex gap-1 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-lg p-0.5">
+                {['pomodoro', 'countdown', 'countup'].map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => { setTimerMode(mode); setTimerState('idle'); setShowSettings(false); }}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                      timerMode === mode
+                        ? 'bg-[var(--accent-clay)]/10 text-[var(--accent-clay)]'
+                        : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
+                    }`}
+                  >
+                    {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex-1" />
+
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                className={`p-1.5 rounded-lg transition-colors ${
+                  showSettings
+                    ? 'bg-[var(--accent-clay)]/10 text-[var(--accent-clay)]'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--border-subtle)]/50'
+                }`}
+                title="Timer settings"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="text-center">
+              {phaseLabel && (
+                <p className="text-xs font-medium text-[var(--text-muted)] mb-1 uppercase tracking-wider">
+                  {phaseLabel}
+                  {timerMode === 'pomodoro' && pomodoroPhase === 'focus' && (
+                    <span className="ml-2 text-[var(--accent-clay)]">
+                      C{pomodoroCycle + 1} #{pomodoroSessionCount + 1}
+                    </span>
+                  )}
+                </p>
               )}
-            </p>
-          )}
-          {timerMode === 'countup' && checkpointsEnabled && checkpointCount > 0 && (
-            <p className="text-xs text-[var(--text-muted)] mb-1">
-              Checkpoint #{checkpointCount}
-            </p>
-          )}
-          <div className="text-5xl font-mono font-bold text-[var(--text-primary)] tabular-nums mb-4">
-            {String(displayMinutes).padStart(2, '0')}:{String(displaySeconds).padStart(2, '0')}
+              {timerMode === 'countup' && checkpointsEnabled && checkpointCount > 0 && (
+                <p className="text-xs text-[var(--text-muted)] mb-1">
+                  Checkpoint #{checkpointCount}
+                </p>
+              )}
+              <div className="text-5xl font-mono font-bold text-[var(--text-primary)] tabular-nums mb-4">
+                {String(displayMinutes).padStart(2, '0')}:{String(displaySeconds).padStart(2, '0')}
+              </div>
+              <div className="flex items-center justify-center gap-2">
+                {timerState === 'idle' && (
+                  <button onClick={handleStart} className="px-5 py-2 rounded-lg bg-[var(--accent-clay)] text-white text-sm font-medium hover:opacity-90 transition-opacity">
+                    Start
+                  </button>
+                )}
+                {timerState === 'running' && (
+                  <button onClick={handlePause} className="px-5 py-2 rounded-lg bg-yellow-500/20 text-yellow-500 text-sm font-medium hover:bg-yellow-500/30 transition-colors">
+                    Pause
+                  </button>
+                )}
+                {timerState === 'paused' && (
+                  <>
+                    <button onClick={handleResume} className="px-5 py-2 rounded-lg bg-[var(--accent-clay)] text-white text-sm font-medium hover:opacity-90 transition-opacity">
+                      Resume
+                    </button>
+                    <button onClick={handleStop} className="px-5 py-2 rounded-lg bg-red-500/20 text-red-400 text-sm font-medium hover:bg-red-500/30 transition-colors">
+                      Stop
+                    </button>
+                  </>
+                )}
+                {(timerState === 'running' || timerState === 'finished') && (
+                  <button onClick={handleStop} className="px-5 py-2 rounded-lg bg-red-500/20 text-red-400 text-sm font-medium hover:bg-red-500/30 transition-colors">
+                    Stop
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
-          <div className="flex items-center justify-center gap-2">
-            {timerState === 'idle' && (
-              <button onClick={handleStart} className="px-5 py-2 rounded-lg bg-[var(--accent-clay)] text-white text-sm font-medium hover:opacity-90 transition-opacity">
-                Start
-              </button>
-            )}
-            {timerState === 'running' && (
-              <button onClick={handlePause} className="px-5 py-2 rounded-lg bg-yellow-500/20 text-yellow-500 text-sm font-medium hover:bg-yellow-500/30 transition-colors">
-                Pause
-              </button>
-            )}
-            {timerState === 'paused' && (
-              <>
-                <button onClick={handleResume} className="px-5 py-2 rounded-lg bg-[var(--accent-clay)] text-white text-sm font-medium hover:opacity-90 transition-opacity">
-                  Resume
-                </button>
-                <button onClick={handleStop} className="px-5 py-2 rounded-lg bg-red-500/20 text-red-400 text-sm font-medium hover:bg-red-500/30 transition-colors">
-                  Stop
-                </button>
-              </>
-            )}
-            {(timerState === 'running' || timerState === 'finished') && (
-              <button onClick={handleStop} className="px-5 py-2 rounded-lg bg-red-500/20 text-red-400 text-sm font-medium hover:bg-red-500/30 transition-colors">
-                Stop
-              </button>
-            )}
-          </div>
+
+          {showSettings && (
+            <SettingsModal
+              timerMode={timerMode}
+              timerConfig={timerConfig}
+              updateTimerConfig={updateTimerConfig}
+              customDuration={customDuration}
+              setCustomDuration={setCustomDuration}
+              onClose={() => setShowSettings(false)}
+            />
+          )}
         </div>
       </div>
-
-      {showSettings && (
-        <SettingsModal
-          timerMode={timerMode}
-          timerConfig={timerConfig}
-          updateTimerConfig={updateTimerConfig}
-          customDuration={customDuration}
-          setCustomDuration={setCustomDuration}
-          onClose={() => setShowSettings(false)}
-        />
-      )}
 
       <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-6 mb-6">
         <SectionHeader label="Totals" />
@@ -681,58 +737,6 @@ export default function ActivityTab({ project, onUpdateProject, onNotify }) {
           ))}
         </div>
       )}
-
-      <div className="mt-8">
-        <SectionHeader
-          label="Launch Items"
-          action={
-            <button
-              onClick={openAddLaunch}
-              className="text-xs px-3 py-1.5 rounded-lg bg-[var(--accent-clay)]/10 text-[var(--accent-clay)] hover:bg-[var(--accent-clay)]/20 transition-colors font-medium"
-            >
-              + Add Item
-            </button>
-          }
-        />
-        {launchItems.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-sm text-[var(--text-muted)]">No launch items configured.</p>
-          </div>
-        ) : (
-          <div className="space-y-2 mt-4">
-            {launchItems.map((item, idx) => (
-              <div key={item.id} className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-4">
-                <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
-                    item.type === 'command' ? 'bg-green-500/10 text-green-500' : 'bg-indigo-500/10 text-indigo-400'
-                  }`}>
-                    {item.type === 'command' ? '>_' : 'A'}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-[var(--text-primary)] truncate">{item.name}</p>
-                    <p className="text-xs text-[var(--text-muted)] truncate font-mono">
-                      {item.type === 'command' ? item.command : item.path}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => handleLaunchItem(item)} className="text-xs px-2.5 py-1 rounded-lg bg-[var(--accent-clay)]/10 text-[var(--accent-clay)] hover:bg-[var(--accent-clay)]/20 transition-colors font-medium" title={`Launch ${item.name}`}>Run</button>
-                    <button onClick={() => toggleKillOnStop(item.id)} title={item.killOnStop ? 'Will kill on stop' : 'Will not kill on stop'} className={`text-xs px-2 py-0.5 rounded-full transition-colors ${item.killOnStop ? 'bg-red-500/10 text-red-400' : 'bg-[var(--border-subtle)] text-[var(--text-muted)]'}`}>{item.killOnStop ? 'Kill' : 'No-kill'}</button>
-                    {idx > 0 && <button onClick={() => handleMoveUp(idx)} className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg></button>}
-                    {idx < launchItems.length - 1 && <button onClick={() => handleMoveDown(idx)} className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg></button>}
-                    <button onClick={() => openEditLaunch(item.id)} className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
-                    <button onClick={() => handleRemoveLaunch(item.id)} className="p-1 text-[var(--text-muted)] hover:text-red-400 transition-colors"><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
-                  </div>
-                </div>
-                {item.type === 'command' && item.wait && (
-                  <div className="mt-2 flex items-center gap-1.5">
-                    <span className="text-[10px] font-medium text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded-full">Waits for completion</span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
 
       <AnimatePresence>
         {showLaunchModal && (
