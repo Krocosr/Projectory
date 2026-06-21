@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- This is the App Store / macOS ready icon with safe zone respected -->
+  <defs>
+    <filter id="s1">
+      <feDropShadow dx="0" dy="16" stdDeviation="32" flood-color="#2E2825" flood-opacity="0.14"/>
+    </filter>
+    <filter id="s2">
+      <feDropShadow dx="0" dy="6" stdDeviation="12" flood-color="#2E2825" flood-opacity="0.07"/>
+    </filter>
+  </defs>
+
+  <!-- Icon bg -->
+  
+  <!-- Card shadow layer -->
+  <g filter="url(#s1)">
+
+    <!-- Card 3 (farthest back) -->
+    <g transform="translate(512,512) rotate(9) translate(-230,-270)">
+      <rect width="460" height="540" rx="56" fill="#C8BFB4"/>
+    </g>
+
+    <!-- Card 2 (middle) -->
+    <g transform="translate(512,512) rotate(3.5) translate(-250,-288)">
+      <rect width="480" height="560" rx="56" fill="#DDD7CE"/>
+    </g>
+
+    <!-- Card 1 (front) -->
+    <g filter="url(#s2)">
+      <rect x="182" y="202" width="500" height="582" rx="56" fill="#F5F1ED" stroke="#E0D9CF" stroke-width="2"/>
+
+      <!-- Status dot terracotta -->
+      <circle cx="254" cy="288" r="36" fill="#C97854"/>
+
+      <!-- Status dot sage (upper right) -->
+      <circle cx="630" cy="260" r="22" fill="#6B9E6E" opacity="0.88"/>
+
+      <!-- Task line 1 — full weight -->
+      <rect x="214" y="376" width="428" height="52" rx="26" fill="#C97854"/>
+
+      <!-- Task line 2 -->
+      <rect x="214" y="448" width="338" height="52" rx="26" fill="#D4906F"/>
+
+      <!-- Task line 3 -->
+      <rect x="214" y="520" width="248" height="52" rx="26" fill="#E2B59A"/>
+
+      <!-- Task line 4 (faint) -->
+      <rect x="214" y="610" width="168" height="32" rx="16" fill="#ECE6DE"/>
+      <rect x="214" y="654" width="112" height="22" rx="11" fill="#ECE6DE" opacity="0.55"/>
+    </g>
+  </g>
+</svg>

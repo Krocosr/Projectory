@@ -32,7 +32,7 @@ async function findPort(start) {
 }
 
 const port = await findPort(preferred);
-const proc = spawn(process.execPath, [nextCli, 'start', '-p', String(port)], {
+const proc = spawn(process.execPath, [nextCli, 'start', '-H', '0.0.0.0', '-p', String(port)], {
   stdio: 'inherit',
   env: { ...process.env, PORT: String(port) },
 });

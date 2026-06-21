@@ -29,8 +29,9 @@ export default function RootLayout({ children }) {
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#D4815B" />
-        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/icon.svg" />
+        <link rel="icon" href="/exports/favicon.svg" type="image/svg+xml" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/exports/favicon-32.png" />
+        <link rel="apple-touch-icon" href="/exports/icon-128x128.png" />
         <script
           dangerouslySetInnerHTML={{
             __html: `

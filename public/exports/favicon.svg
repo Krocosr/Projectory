@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Background -->
+  <rect width="32" height="32" rx="7" fill="#F5F1ED"/>
+
+  <!-- Card 3 -->
+  <g transform="translate(16,16) rotate(8) translate(-7,-9)">
+    <rect width="12" height="15" rx="2" fill="#D9D0C5"/>
+  </g>
+  <!-- Card 2 -->
+  <g transform="translate(16,16) rotate(3) translate(-9,-10)">
+    <rect width="14" height="17" rx="2" fill="#EAE4DB"/>
+  </g>
+  <!-- Card 1 -->
+  <rect x="5" y="7" width="16" height="19" rx="2" fill="#F5F1ED" stroke="#E8E2DA" stroke-width="0.5"/>
+
+  <!-- Dot -->
+  <circle cx="9" cy="11" r="2.5" fill="#C97854"/>
+
+  <!-- Lines -->
+  <rect x="7" y="16" width="12" height="2.5" rx="1.25" fill="#C97854"/>
+  <rect x="7" y="20" width="9" height="2.5" rx="1.25" fill="#D4906F"/>
+  <rect x="7" y="24" width="7" height="2" rx="1" fill="#E2B59A"/>
+</svg>

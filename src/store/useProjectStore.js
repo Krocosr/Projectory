@@ -2,45 +2,63 @@ import { create } from 'zustand';
 import { loadProjects, saveProjects, recalculateProject } from '@/lib/storage';
 import { createProject as createProjectUtil } from '@/app/data';
 
-/**
- * Zustand store for project state management.
- * Extracted from page.js to reduce complexity and improve testability.
- */
+function getInitialState() {
+  if (typeof window === 'undefined') {
+    return {
+      projects: [],
+      selectedProject: null,
+      ready: false,
+      isLeftSidebarOpen: true,
+    };
+  }
+  const projects = loadProjects() || [];
+  const param = new URLSearchParams(window.location.search).get('project');
+  const selectedProject = param ? projects.find((p) => String(p.id) === param) || null : null;
+  return {
+    projects,
+    selectedProject,
+    ready: projects.length > 0,
+    isLeftSidebarOpen: localStorage.getItem('projectory_left_sidebar_open') !== 'false',
+  };
+}
+
 const useProjectStore = create((set, get) => ({
-  // Core state
-  projects: [],
-  selectedProject: null,
-  ready: false,
+  // Core state — eagerly initialized from localStorage + URL params
+  ...getInitialState(),
 
   // UI state
   activeFilter: 'All',
   searchQuery: '',
-  projectSortBy: typeof window !== 'undefined' 
+  projectSortBy: typeof window !== 'undefined'
     ? localStorage.getItem('projectory_project_sort') || 'unsorted'
     : 'unsorted',
   isDarkMode: false,
   isStreamerMode: false,
   isSidebarOpen: false,
   isNewModalOpen: false,
+  showSettings: false,
+  runningSessions: typeof window !== 'undefined'
+    ? (() => { try { return JSON.parse(localStorage.getItem('projectory_running_sessions') || '{}'); } catch { return {}; } })()
+    : {},
 
   // Actions
   setProjects: (projects) => set({ projects }),
-  
+
   setSelectedProject: (project) => set({ selectedProject: project }),
-  
+
   setReady: (ready) => set({ ready }),
-  
+
   setActiveFilter: (filter) => set({ activeFilter: filter }),
-  
+
   setSearchQuery: (query) => set({ searchQuery: query }),
-  
+
   setProjectSortBy: (sortBy) => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('projectory_project_sort', sortBy);
     }
     set({ projectSortBy: sortBy });
   },
-  
+
   setIsDarkMode: (isDark) => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('projectory_dark_mode', String(isDark));
@@ -48,25 +66,51 @@ const useProjectStore = create((set, get) => ({
     }
     set({ isDarkMode: isDark });
   },
-  
+
   setIsStreamerMode: (isStreamer) => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('projectory_streamer_mode', String(isStreamer));
     }
     set({ isStreamerMode: isStreamer });
   },
-  
+
   setIsSidebarOpen: (isOpen) => set({ isSidebarOpen: isOpen }),
-  
+
   setIsNewModalOpen: (isOpen) => set({ isNewModalOpen: isOpen }),
+
+  setShowSettings: (show) => set({ showSettings: show }),
+
+  setIsLeftSidebarOpen: (isOpen) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('projectory_left_sidebar_open', String(isOpen));
+    }
+    set({ isLeftSidebarOpen: isOpen });
+  },
+
+  setRunningSession: (projectId, session) => set((state) => {
+    const next = { ...state.runningSessions, [projectId]: session };
+    if (typeof window !== 'undefined') localStorage.setItem('projectory_running_sessions', JSON.stringify(next));
+    return { runningSessions: next };
+  }),
+
+  removeRunningSession: (projectId) => set((state) => {
+    const rest = {};
+    Object.keys(state.runningSessions).forEach((key) => {
+      if (key !== projectId) rest[key] = state.runningSessions[key];
+    });
+    if (typeof window !== 'undefined') localStorage.setItem('projectory_running_sessions', JSON.stringify(rest));
+    return { runningSessions: rest };
+  }),
 
   // Complex actions
   initializeProjects: () => {
     if (typeof window === 'undefined') return;
+    const s = get();
+    if (s.projects.length > 0) return;
     const projects = loadProjects() || [];
-    set({ 
+    set({
       projects,
-      ready: projects.length > 0 
+      ready: projects.length > 0,
     });
   },
 
@@ -75,11 +119,11 @@ const useProjectStore = create((set, get) => ({
     const currentProjects = get().projects;
     const updatedProjects = [newProject, ...currentProjects];
     const result = saveProjects(updatedProjects);
-    
+
     if (result.success) {
       set({ projects: updatedProjects });
     }
-    
+
     return result;
   },
 
@@ -87,27 +131,27 @@ const useProjectStore = create((set, get) => ({
     const recalculated = recalculateProject(updatedProject);
     const currentProjects = get().projects;
     const currentSelected = get().selectedProject;
-    
-    const updatedProjects = currentProjects.map((p) => 
+
+    const updatedProjects = currentProjects.map((p) =>
       p.id === recalculated.id ? recalculated : p
     );
-    
+
     const result = saveProjects(updatedProjects);
-    
+
     if (result.success) {
-      set({ 
+      set({
         projects: updatedProjects,
         selectedProject: currentSelected?.id === recalculated.id ? recalculated : currentSelected
       });
     }
-    
+
     return result;
   },
 
   archiveProject: (projectId) => {
     const currentProjects = get().projects;
     const projectToArchive = currentProjects.find((p) => p.id === projectId);
-    
+
     const updatedProjects = currentProjects.map((p) => {
       if (p.id !== projectId) return p;
       return {
@@ -120,33 +164,33 @@ const useProjectStore = create((set, get) => ({
         ],
       };
     });
-    
+
     const result = saveProjects(updatedProjects);
-    
+
     if (result.success) {
-      set({ 
+      set({
         projects: updatedProjects,
-        selectedProject: null 
+        selectedProject: null
       });
     }
-    
+
     return { success: result.success, error: result.error, projectToArchive };
   },
 
   deletePermanent: (projectId) => {
     const currentProjects = get().projects;
     const deletedProject = currentProjects.find((p) => p.id === projectId);
-    
+
     const updatedProjects = currentProjects.filter((p) => p.id !== projectId);
     const result = saveProjects(updatedProjects);
-    
+
     if (result.success) {
-      set({ 
+      set({
         projects: updatedProjects,
-        selectedProject: null 
+        selectedProject: null
       });
     }
-    
+
     return { success: result.success, error: result.error, deletedProject };
   },
 
@@ -154,23 +198,23 @@ const useProjectStore = create((set, get) => ({
     const currentProjects = get().projects;
     const archivedProjects = currentProjects.filter((p) => p.status === 'Archived');
     const archivedCount = archivedProjects.length;
-    
+
     if (archivedCount === 0) {
       return { success: false, error: 'No archived projects to clean up', count: 0 };
     }
-    
+
     const updatedProjects = currentProjects.filter((p) => p.status !== 'Archived');
     const result = saveProjects(updatedProjects);
-    
+
     if (result.success) {
       set({ projects: updatedProjects });
     }
-    
-    return { 
-      success: result.success, 
-      error: result.error, 
+
+    return {
+      success: result.success,
+      error: result.error,
       count: archivedCount,
-      snapshot: currentProjects 
+      snapshot: currentProjects
     };
   },
 
@@ -195,41 +239,41 @@ const useProjectStore = create((set, get) => ({
     const existingIds = new Set(currentProjects.map((p) => p.id));
     const newProjects = importedProjects.filter((p) => !existingIds.has(p.id));
     const merged = [...currentProjects, ...newProjects];
-    
+
     const result = saveProjects(merged);
     if (result.success) {
       set({ projects: merged });
     }
-    
-    return { 
-      success: result.success, 
-      error: result.error, 
-      addedCount: newProjects.length 
+
+    return {
+      success: result.success,
+      error: result.error,
+      addedCount: newProjects.length
     };
   },
 
   toggleTodoInProject: (projectId, todoId) => {
     const currentProjects = get().projects;
     const now = new Date().toISOString();
-    
+
     const updatedProjects = currentProjects.map((p) => {
       if (p.id !== projectId) return p;
-      
+
       const newTodos = (p.todos || []).map((t) =>
-        t.id === todoId 
-          ? { ...t, done: !t.done, completedAt: t.done ? null : now } 
+        t.id === todoId
+          ? { ...t, done: !t.done, completedAt: t.done ? null : now }
           : t
       );
-      
+
       return recalculateProject({ ...p, todos: newTodos });
     });
-    
+
     const result = saveProjects(updatedProjects);
-    
+
     if (result.success) {
       set({ projects: updatedProjects });
     }
-    
+
     return result;
   },
 

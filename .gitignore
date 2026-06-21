@@ -26,7 +26,11 @@ build/
 .stylelintcache
 .node_repl_history
 
+# Tauri
+src-tauri/target/
+
 # AI / agent / MCP
+.codegraph/
 .agents/
 mcp.json
 .opencode/

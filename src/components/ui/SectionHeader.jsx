@@ -1,6 +1,6 @@
 'use client';
 
-export function SectionHeader({ icon, label, color = 'var(--accent-clay)', count, children, className = '' }) {
+export function SectionHeader({ icon, label, color = 'var(--accent-clay)', count, action, children, className = '' }) {
   return (
     <div className={`flex items-center gap-2 mb-3 ${className}`}>
       {icon && (
@@ -12,6 +12,8 @@ export function SectionHeader({ icon, label, color = 'var(--accent-clay)', count
       {count !== undefined && (
         <span className="text-xs text-[var(--text-muted)] tabular-nums">{count}</span>
       )}
+      <div className="flex-1" />
+      {action}
       {children}
     </div>
   );

@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img src="/screenshot-dashboard.png" width="700" alt="Dashboard screenshot" />
+  <img src="/public/screenshot-dashboard.png" width="700" alt="Dashboard screenshot" />
 </p>
 
 ---
@@ -51,7 +51,7 @@ Projectory doesn't try to replace Jira, Notion, or Linear. Instead, it focuses o
 - **CLI Tool** — Manage everything from the terminal: `node scripts/projectory-cli.mjs list`
 
 <p align="center">
-  <img src="/screenshot-detail.png" width="700" alt="Project detail screenshot" />
+  <img src="/public/screenshot-detail.png" width="700" alt="Project detail screenshot" />
 </p>
 
 ---
@@ -153,7 +153,8 @@ Projectory includes a [Model Context Protocol](https://modelcontextprotocol.io/)
 3. **Done** — your AI assistant can now manage your projects and todos.
 
 or
-> **Copy-Paste this to your agent:** Read and follow the setup instructions at [README.md](https://raw.githubusercontent.com/Krocosr/Projectory/master/README.md) to configure yourself.
+**Copy-Paste this to your agent:** 
+> Read and follow the setup instructions at https://raw.githubusercontent.com/Krocosr/Projectory/master/README.md to configure yourself.
 
 ---
 
