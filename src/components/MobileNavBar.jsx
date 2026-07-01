@@ -5,7 +5,7 @@ export default function MobileNavBar({ onToggleDrawer, isDrawerOpen }) {
   const isDarkMode = useProjectStore((s) => s.isDarkMode);
 
   return (
-    <div className="fixed top-0 left-0 right-0 h-14 bg-[var(--bg-primary)] border-b border-[var(--border-subtle)] flex items-center justify-between px-4 z-40 lg:hidden">
+    <div className="fixed top-0 left-0 right-0 h-14 bg-[var(--bg-primary)] border-b border-[var(--border-subtle)] flex items-center justify-between px-4 z-[45] lg:hidden">
       <a href="/" className="flex items-center gap-2 shrink-0" aria-label="Home">
         <img
           src={isDarkMode ? '/exports/icon-monochrome-transparent.svg' : '/exports/icon-transparent.svg'}
