@@ -11,7 +11,7 @@ import { ProgressBar } from '@/components/ui';
 import { OverviewTab, TodosTab, WorkspaceTab, ScratchpadTab, ActivityTab, TimelineTab, SettingsTab, EditTodoModal } from '@/components/detail';
 
 
-const TABS = ['Overview', 'Todos', 'Workspace', 'Scratchpad', 'Activity', 'Timeline', 'Settings'];
+const TABS = ['Overview', 'Todos', 'Workspace', 'Scratchpad', 'Apps & Activity', 'Timeline', 'Settings'];
 
 export default function ProjectDetailView({ project, onBack, onUpdateProject, onDeleteProject, onNotify, isDarkMode, onToggleDarkMode, onToggleSidebar, activeTodosCount, isStreamerMode, onToggleStreamerMode, scrollContainerRef }) {
   const confirm = useConfirm();
@@ -289,7 +289,7 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
         </div>
       </div>
 
-      <nav className="flex gap-1 mb-6 border-b border-[var(--border-subtle)]" role="tablist">
+      <nav className="flex gap-1 mb-6 border-b border-[var(--border-subtle)] overflow-x-auto" role="tablist">
         {TABS.map((tab) => {
           const isActive = activeTab === tab;
           return (
@@ -361,7 +361,7 @@ export default function ProjectDetailView({ project, onBack, onUpdateProject, on
             />
           </div>
         )}
-        {activeTab === 'Activity' && (
+        {activeTab === 'Apps & Activity' && (
           <div key="activity">
             <ActivityTab
               project={project}

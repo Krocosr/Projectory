@@ -1,54 +1,45 @@
-﻿'use client';
-import { useState, useMemo, useEffect, useCallback, useRef, useDeferredValue, Suspense } from 'react';
+'use client';
+import { useMemo, useEffect, useCallback, useRef, useDeferredValue, Suspense, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { DndContext, closestCorners } from '@dnd-kit/core';
+import { DndContext, closestCorners, DragOverlay } from '@dnd-kit/core';
 import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable';
 import { AnimatePresence, motion } from 'framer-motion';
 
-// Store
 import useProjectStore from '@/store/useProjectStore';
 
-// Components
 import DashboardHeader from '@/components/DashboardHeader';
-import NewProjectModal from '@/components/NewProjectModal';
-import ToastContainer, { useToast } from '@/components/Toast';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import ActiveTodosSidebar from '@/components/ActiveTodosSidebar';
-import RunningSessionBar from '@/components/RunningSessionBar';
 import { NewProjectButton } from '@/components/NewProjectButton';
 import { NewProjectCard } from '@/components/NewProjectCard';
 import { EmptyPortfolio } from '@/components/EmptyPortfolio';
 import { CardSkeleton } from '@/components/CardSkeleton';
 import { ProjectDetailSkeleton } from '@/components/ProjectDetailSkeleton';
-import LeftSidebar from '@/components/LeftSidebar';
-import SettingsPanel from '@/components/SettingsPanel';
 import { SortableProjectCard } from '@/components/SortableProjectCard';
-import ProjectDetailView from '@/components/ProjectDetailView';
+import ProjectCard from '@/components/ProjectCard';
+import dynamic from 'next/dynamic';
+import { launchItems as desktopLaunchItems } from '@/lib/desktop';
 
-// Hooks
+const ProjectDetailView = dynamic(() => import('@/components/ProjectDetailView'), { ssr: false });
+
 import { useProjectPolling } from '@/hooks/useProjectPolling';
 import { useProjectDragDrop } from '@/hooks/useProjectDragDrop';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 
-// Utils
 import { seedProjects, SEED_KEY } from '@/app/data';
 import { recoverFromApi, exportToFile, importFromFile, createAutoBackup } from '@/lib/storage';
 import { migrateFromLocalStorage } from '@/lib/db';
 import { getActiveTodos } from '@/lib/todoAggregator';
 import { searchProjects } from '@/lib/search';
 import { useConfirm } from '@/components/ConfirmModal';
+import { useSessionManager } from '@/hooks/useSessionManager';
 import { AUTO_BACKUP_INTERVAL_MS } from '@/lib/constants';
 
-
-
-function DashboardContent() {
+function ProjectsContent() {
   const searchParams = useSearchParams();
   const projectParam = searchParams.get('project') || null;
   const router = useRouter();
   const confirm = useConfirm();
-  const { toasts, addToast, dismissToast } = useToast();
-  
-  // Zustand store
+
   const {
     projects,
     selectedProject,
@@ -59,7 +50,6 @@ function DashboardContent() {
     isDarkMode,
     isStreamerMode,
     isSidebarOpen,
-    isNewModalOpen,
     setProjects,
     setSelectedProject,
     setReady,
@@ -71,7 +61,6 @@ function DashboardContent() {
     setIsSidebarOpen,
     setIsNewModalOpen,
     initializeProjects,
-    createProject: createProjectAction,
     updateProject: updateProjectAction,
     archiveProject,
     deletePermanent,
@@ -79,25 +68,20 @@ function DashboardContent() {
     restoreProjects,
     replaceAllProjects,
     mergeProjects,
-    toggleTodoInProject,
     reorderProjects,
+    addToast,
     runningSessions,
     setRunningSession,
-    removeRunningSession,
   } = useProjectStore();
 
   const lastFocusedCardIdRef = useRef(null);
-  const scrollContainerRef = useRef(null);
   const deferredSearch = useDeferredValue(searchQuery);
-  const isLeftSidebarOpen = useProjectStore((s) => s.isLeftSidebarOpen);
 
-  // Initialize on mount
   useEffect(() => {
     history.scrollRestoration = 'manual';
     initializeProjects();
   }, [initializeProjects]);
 
-  // Initialize dark mode
   useEffect(() => {
     const stored = localStorage.getItem('projectory_dark_mode');
     if (stored !== null) {
@@ -109,13 +93,11 @@ function DashboardContent() {
     }
   }, [setIsDarkMode]);
 
-  // Initialize streamer mode
   useEffect(() => {
     const stored = localStorage.getItem('projectory_streamer_mode');
     if (stored === 'true') setIsStreamerMode(true);
   }, [setIsStreamerMode]);
 
-  // Periodic auto-backup
   useEffect(() => {
     const timer = setInterval(() => {
       if (document.hidden) return;
@@ -129,32 +111,25 @@ function DashboardContent() {
     return () => clearInterval(timer);
   }, [projects]);
 
-  // Backup on save
   useEffect(() => {
     if (projects.length > 0) {
       createAutoBackup(projects);
     }
   }, [projects]);
 
-  // Recover from API
   useEffect(() => {
     let cancelled = false;
-
     recoverFromApi().then((recovered) => {
       if (cancelled) return;
-
-      // Check actual store state after initializeProjects has run
       const hasLocal = useProjectStore.getState().projects.length > 0;
 
       if (recovered && recovered.length > 0) {
         setProjects(recovered);
-
         const urlParam = new URLSearchParams(window.location.search).get('project');
         if (urlParam) {
           const found = recovered.find((p) => String(p.id) === urlParam);
           if (found) setSelectedProject(found);
         }
-
         if (!hasLocal) {
           addToast('Projects restored from server backup', 'info');
         }
@@ -171,11 +146,9 @@ function DashboardContent() {
         setReady(true);
       }
     });
-
     return () => { cancelled = true; };
   }, [addToast, setProjects, setSelectedProject, setReady, replaceAllProjects]);
 
-  // Sync IndexedDB
   useEffect(() => {
     migrateFromLocalStorage().then((migrated) => {
       if (!migrated && projects.length > 0) {
@@ -184,13 +157,10 @@ function DashboardContent() {
     });
   }, []);
 
-  // Polling hook
   useProjectPolling(ready, setProjects, selectedProject, setSelectedProject);
 
-  // Sync selected project with URL
   useEffect(() => {
     const currentId = selectedProject ? String(selectedProject.id) : null;
-
     if (projectParam === currentId) return;
 
     if (projectParam) {
@@ -206,7 +176,6 @@ function DashboardContent() {
     }
   }, [projectParam, ready, projects, router, selectedProject, setSelectedProject]);
 
-  // Filtered and sorted projects
   const filteredProjects = useMemo(() => {
     let list = searchProjects(projects, deferredSearch);
     if (activeFilter === 'All') list = list.filter((p) => p.status !== 'Archived');
@@ -249,24 +218,20 @@ function DashboardContent() {
     return counts;
   }, [projects]);
 
-  const [todoSortBy, setTodoSortBy] = useState('priority');
-  const aggregatedTodos = useMemo(() => getActiveTodos(projects, todoSortBy), [projects, todoSortBy]);
+  const aggregatedTodos = useMemo(() => getActiveTodos(projects, 'priority'), [projects]);
 
-  // Keyboard shortcuts hook
   useKeyboardShortcuts(!!selectedProject, () => setIsNewModalOpen(true));
 
-  // Drag-and-drop hook
+  const { stopSession } = useSessionManager();
+
   const handleReorder = useCallback((reordered, shouldMerge) => {
     const isFiltered = reordered.length < projects.length;
     if (shouldMerge || isFiltered) {
-      const reorderedMap = new Map(reordered.map((p) => [p.id, p]));
-      const merged = projects.map((p) => reorderedMap.get(p.id) || p);
-      for (const p of reordered) {
-        if (!projects.some((proj) => proj.id === p.id)) {
-          merged.push(p);
-        }
-      }
-
+      const reorderedIds = new Set(reordered.map((p) => p.id));
+      const merged = [
+        ...reordered,
+        ...projects.filter((p) => !reorderedIds.has(p.id)),
+      ];
       const result = reorderProjects(merged);
       if (!result.success) {
         addToast(result.error || 'Failed to save reorder', 'error');
@@ -279,25 +244,22 @@ function DashboardContent() {
     }
   }, [projects, reorderProjects, addToast]);
 
-  const { sensors, isProjectDragging, handleProjectDragStart, handleProjectDragEnd } = 
-    useProjectDragDrop(filteredProjects, projectSortBy, handleReorder, setProjectSortBy, addToast);
+  const { sensors, handleProjectDragStart, handleProjectDragEnd } =
+    useProjectDragDrop(filteredProjects, projectSortBy, handleReorder, setProjectSortBy);
 
-  // Reset scroll when navigating
-  useEffect(() => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTop = 0;
-    }
-  }, [selectedProject?.id]);
+  const [activeDragId, setActiveDragId] = useState(null);
 
-  // Event handlers
-  const handleNewProject = useCallback((form) => {
-    const result = createProjectAction(form);
-    if (result.success) {
-      addToast('Project created');
-    } else {
-      addToast(result.error || 'Failed to save project', 'error');
-    }
-  }, [createProjectAction, addToast]);
+  const onDragStart = useCallback((event) => {
+    handleProjectDragStart(event);
+    setActiveDragId(event.active.id);
+  }, [handleProjectDragStart]);
+
+  const onDragEnd = useCallback((event) => {
+    handleProjectDragEnd(event);
+    setActiveDragId(null);
+  }, [handleProjectDragEnd]);
+
+  const activeDragProject = activeDragId ? filteredProjects.find((p) => String(p.id) === activeDragId) : null;
 
   const handleUpdateProject = useCallback((updated) => {
     const result = updateProjectAction(updated);
@@ -365,7 +327,6 @@ function DashboardContent() {
   const handleBack = useCallback(() => {
     setSelectedProject(null);
     router.replace('/', { scroll: false });
-    
     const focusedId = lastFocusedCardIdRef.current;
     if (focusedId) {
       let attempts = 0;
@@ -402,151 +363,67 @@ function DashboardContent() {
     addToast(result.success ? `Merged ${result.addedCount} new projects` : (result.error || 'Merge failed'), result.success ? 'info' : 'error');
   }, [addToast, confirm, replaceAllProjects, mergeProjects]);
 
-  const handleToggleTodoFromSidebar = useCallback((projectId, todoId) => {
-    const result = toggleTodoInProject(projectId, todoId);
-    if (!result.success) {
-      addToast(result.error || 'Failed to save changes', 'error');
-    }
-  }, [toggleTodoInProject, addToast]);
-
-  const handleSidebarReorder = useCallback((reorderedTodos) => {
-    setProjects((current) => {
-      const orderMap = {};
-      reorderedTodos.forEach((todo, index) => {
-        if (!orderMap[todo.projectId]) {
-          orderMap[todo.projectId] = [];
-        }
-        orderMap[todo.projectId].push({ id: todo.id, order: index });
-      });
-      const updated = current.map((project) => {
-        if (!orderMap[project.id]) return project;
-        const projectOrders = orderMap[project.id];
-        const todoOrderMap = new Map(projectOrders.map(o => [o.id, o.order]));
-        const newTodos = (project.todos || []).map((todo) => {
-          if (todoOrderMap.has(todo.id)) {
-            return { ...todo, order: todoOrderMap.get(todo.id) };
-          }
-          return todo;
-        });
-        return { ...project, todos: newTodos };
-      });
-      const result = saveProjects(updated);
-      if (!result.success) {
-        addToast(result.error || 'Failed to save todo reorder', 'error');
-      }
-      return updated;
-    });
-  }, [addToast]);
-
-  const handleSidebarNavigate = useCallback((projectId) => {
-    setIsSidebarOpen(false);
-    const project = projects.find((p) => p.id === projectId);
-    if (project) handleCardClick(project);
-  }, [projects, handleCardClick, setIsSidebarOpen]);
-
-  const handleToggleStreamerMode = useCallback(() => {
-    setIsStreamerMode(!isStreamerMode);
-    addToast(isStreamerMode ? 'Streamer mode off' : 'Streamer mode on - sensitive content hidden');
-  }, [isStreamerMode, setIsStreamerMode, addToast]);
-
   const fabLaunch = selectedProject?.launchItems?.length > 0;
   const fabRunning = fabLaunch && runningSessions[selectedProject?.id]?.status === 'running';
 
-  const handleFabLaunch = useCallback(() => {
+  const handleFabLaunch = useCallback(async () => {
     const p = selectedProject;
     if (!p || !p.launchItems?.length) return;
-
+    const result = await desktopLaunchItems(p.launchItems);
+    if (!result?.success) {
+      addToast(result?.error || 'Failed to launch apps', 'error');
+      return;
+    }
     const now = new Date().toISOString();
     const itemIds = p.launchItems.map((it) => it.id);
-
-    const logEntries = itemIds.map((id) => {
-      const item = p.launchItems.find((it) => it.id === id);
-      return {
-        itemId: id,
-        itemName: item?.name || 'Unknown',
-        startTime: now,
-        source: 'launch',
-      };
-    });
-
-    const newLog = [...(p.activityLog || []), ...logEntries];
+    
+    const newLog = [...(p.activityLog || []), {
+      itemId: `session-${Date.now()}`,
+      itemName: `Session (${p.launchItems.length} apps)`,
+      startTime: now,
+      source: 'launch',
+    }];
     const newTimeline = [...(p.timeline || []), { date: now, action: `Launched ${p.launchItems.length} app(s)` }];
     handleUpdateProject({ ...p, activityLog: newLog, timeline: newTimeline });
-
     setRunningSession(p.id, {
       status: 'running',
       launchItemIds: itemIds,
       startedAt: now,
+      timerMode: p.timerConfig?.mode || 'countup',
     });
-
     addToast(`Started tracking ${p.launchItems.length} app(s)`);
   }, [selectedProject, handleUpdateProject, setRunningSession, addToast]);
 
-  const handleFabStop = useCallback(() => {
+  const handleFabStop = useCallback(async () => {
     const p = selectedProject;
     if (!p) return;
-
-    const session = runningSessions[p.id];
-    const now = new Date().toISOString();
-    const duration = session?.startedAt
-      ? Math.floor((Date.now() - new Date(session.startedAt).getTime()) / 1000)
-      : 0;
-
-    if (duration > 0) {
-      const updatedLog = (p.activityLog || []).map((entry) =>
-        entry.startTime === session?.startedAt && !entry.endTime
-          ? { ...entry, endTime: now, duration }
-          : entry
-      );
-      const newTimeline = [...(p.timeline || []), {
-        date: now,
-        action: `Stopped session (${Math.round(duration / 60)}m)`,
-      }];
-      handleUpdateProject({ ...p, activityLog: updatedLog, timeline: newTimeline });
-    }
-
-    removeRunningSession(p.id);
-    addToast('Session stopped');
-  }, [selectedProject, runningSessions, handleUpdateProject, removeRunningSession, addToast]);
-
-  const handleSessionNavigate = useCallback((projectId) => {
-    const project = projects.find((p) => String(p.id) === String(projectId));
-    if (project) {
-      router.push(`/?project=${projectId}`, { scroll: false });
-    }
-  }, [projects, router]);
+    const ok = await confirm('Stop the current session?');
+    if (!ok) return;
+    stopSession(p, handleUpdateProject, addToast);
+  }, [selectedProject, confirm, stopSession, handleUpdateProject, addToast]);
 
   const fabMode = fabRunning ? 'stop' : fabLaunch ? 'launch' : 'add';
 
   return (
-    <div className={`min-h-screen flex overflow-hidden${isStreamerMode ? ' streamer-mode' : ''}`}>
-      <LeftSidebar />
-
-      
-
+    <>
       <NewProjectButton
         mode={fabMode}
         onClick={() => setIsNewModalOpen(true)}
         onLaunch={handleFabLaunch}
         onStop={handleFabStop}
       />
-      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
-      <div 
-        ref={scrollContainerRef} 
-        className={`flex-1 min-w-0 transition-all duration-300 relative ${isProjectDragging ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden'}`} 
-        style={{ marginLeft: isLeftSidebarOpen ? '240px' : '56px', marginRight: isSidebarOpen ? '380px' : '0' }}
-      >
-        <div className="max-w-7xl mx-auto px-8 py-10">
-          <AnimatePresence mode="wait">
-            {selectedProject ? (
-              <motion.div
-                key="detail"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -12 }}
-                transition={{ duration: 0.2, ease: 'easeOut' }}
-              >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10 min-h-screen">
+        <AnimatePresence mode="wait">
+          {selectedProject ? (
+            <motion.div
+              key="detail"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+            >
+              <Suspense fallback={<ProjectDetailSkeleton />}>
                 <ErrorBoundary
                   context="ProjectDetailView"
                   errorMessage="Failed to load project details. Try going back to the dashboard."
@@ -561,152 +438,122 @@ function DashboardContent() {
                     isDarkMode={isDarkMode}
                     onToggleDarkMode={setIsDarkMode}
                     isStreamerMode={isStreamerMode}
-                    onToggleStreamerMode={handleToggleStreamerMode}
+                    onToggleStreamerMode={() => {
+                      setIsStreamerMode(!isStreamerMode);
+                      addToast(isStreamerMode ? 'Streamer mode off' : 'Streamer mode on - sensitive content hidden');
+                    }}
                     onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
                     activeTodosCount={aggregatedTodos.length}
-                    scrollContainerRef={scrollContainerRef}
                   />
                 </ErrorBoundary>
-              </motion.div>
-            ) : projectParam && !ready ? (
-              <motion.div key="skeleton" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.15 }}>
-                <ProjectDetailSkeleton />
-              </motion.div>
-            ) : (
-              <motion.div
-                key="dashboard"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -12 }}
-                transition={{ duration: 0.2, ease: 'easeOut' }}
-              >
-                <DashboardHeader
-                  activeFilter={activeFilter}
-                  onFilterChange={setActiveFilter}
-                  projectCounts={projectCounts}
-                  searchQuery={searchQuery}
-                  onSearchChange={setSearchQuery}
-                  onExport={handleExport}
-                  onImport={handleImport}
-                  isDarkMode={isDarkMode}
-                  onToggleDarkMode={setIsDarkMode}
-                  onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-                  activeTodosCount={aggregatedTodos.length}
-                  onCleanupArchive={handleCleanupArchive}
-                  projectSortBy={projectSortBy}
-                  onProjectSortChange={setProjectSortBy}
-                  isStreamerMode={isStreamerMode}
-                  onToggleStreamerMode={handleToggleStreamerMode}
-                />
+              </Suspense>
+            </motion.div>
+          ) : projectParam && !ready ? (
+            <motion.div key="skeleton" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.15 }}>
+              <ProjectDetailSkeleton />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="dashboard"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+            >
+              <DashboardHeader
+                activeFilter={activeFilter}
+                onFilterChange={setActiveFilter}
+                projectCounts={projectCounts}
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                onExport={handleExport}
+                onImport={handleImport}
+                isDarkMode={isDarkMode}
+                onToggleDarkMode={setIsDarkMode}
+                onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+                activeTodosCount={aggregatedTodos.length}
+                onCleanupArchive={handleCleanupArchive}
+                projectSortBy={projectSortBy}
+                onProjectSortChange={setProjectSortBy}
+                isStreamerMode={isStreamerMode}
+                onToggleStreamerMode={() => {
+                  setIsStreamerMode(!isStreamerMode);
+                  addToast(isStreamerMode ? 'Streamer mode off' : 'Streamer mode on - sensitive content hidden');
+                }}
+              />
 
-                {!ready ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 auto-rows-fr">
-                    {[...Array(4)].map((_, i) => <CardSkeleton key={i} />)}
-                  </div>
-                ) : (
-                  <div>
-                    {filteredProjects.length > 0 ? (
-                      <DndContext 
-                        onDragStart={handleProjectDragStart} 
-                        onDragEnd={handleProjectDragEnd} 
-                        sensors={sensors} 
-                        collisionDetection={closestCorners}
+              {!ready ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5 auto-rows-fr">
+                  {[...Array(4)].map((_, i) => <CardSkeleton key={i} />)}
+                </div>
+              ) : (
+                <div>
+                  {filteredProjects.length > 0 ? (
+                    <DndContext
+                       onDragStart={onDragStart}
+                       onDragEnd={onDragEnd}
+                       sensors={sensors}
+                       collisionDetection={closestCorners}
+                     >
+                       <SortableContext
+                         items={filteredProjects.map((p) => String(p.id))}
+                         strategy={rectSortingStrategy}
+                       >
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5 auto-rows-fr">
+                           {filteredProjects.map((project) => (
+                             <SortableProjectCard
+                               key={String(project.id)}
+                               project={project}
+                               onClick={handleCardClick}
+                               onUpdateProject={handleUpdateProject}
+                               onDeleteProject={handleDeleteProject}
+                               onDeletePermanent={handleDeletePermanent}
+                               onNotify={addToast}
+                             />
+                           ))}
+                           {activeFilter === 'All' && !searchQuery && (
+                             <NewProjectCard onClick={() => setIsNewModalOpen(true)} />
+                           )}
+                         </div>
+                       </SortableContext>
+                       <DragOverlay>
+                         {activeDragProject ? (
+                           <ProjectCard
+                             project={activeDragProject}
+                             isDragging={true}
+                           />
+                         ) : null}
+                       </DragOverlay>
+                     </DndContext>
+                  ) : projects.length === 0 ? (
+                    <EmptyPortfolio onNewProject={() => setIsNewModalOpen(true)} />
+                  ) : (
+                    <div className="text-center py-20">
+                      <p className="text-sm text-[var(--text-muted)]">
+                        {searchQuery ? 'No projects match your search' : `No ${activeFilter.toLowerCase()} projects`}
+                      </p>
+                      <button
+                        onClick={() => { setActiveFilter('All'); setSearchQuery(''); }}
+                        className="mt-2 text-sm text-[var(--accent-clay)] hover:text-[var(--text-primary)] transition-colors"
                       >
-                        <SortableContext 
-                          items={filteredProjects.map((p) => String(p.id))} 
-                          strategy={rectSortingStrategy}
-                        >
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 auto-rows-fr">
-                            {filteredProjects.map((project) => (
-                              <SortableProjectCard
-                                key={String(project.id)}
-                                project={project}
-                                onClick={handleCardClick}
-                                onUpdateProject={handleUpdateProject}
-                                onDeleteProject={handleDeleteProject}
-                                onDeletePermanent={handleDeletePermanent}
-                                onNotify={addToast}
-                              />
-                            ))}
-                            {activeFilter === 'All' && !searchQuery && (
-                              <NewProjectCard onClick={() => setIsNewModalOpen(true)} />
-                            )}
-                          </div>
-                        </SortableContext>
-                      </DndContext>
-                    ) : projects.length === 0 ? (
-                      <EmptyPortfolio onNewProject={() => setIsNewModalOpen(true)} />
-                    ) : (
-                      <div className="text-center py-20">
-                        <p className="text-sm text-[var(--text-muted)]">
-                          {searchQuery ? 'No projects match your search' : `No ${activeFilter.toLowerCase()} projects`}
-                        </p>
-                        <button
-                          onClick={() => { setActiveFilter('All'); setSearchQuery(''); }}
-                          className="mt-2 text-sm text-[var(--accent-clay)] hover:text-[var(--text-primary)] transition-colors"
-                        >
-                          Show all projects
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+                        Show all projects
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-
-      <ActiveTodosSidebar
-        isOpen={isSidebarOpen}
-        todos={aggregatedTodos}
-        onToggleTodo={handleToggleTodoFromSidebar}
-        onNavigateToProject={handleSidebarNavigate}
-        onReorderTodos={handleSidebarReorder}
-      />
-
-      <RunningSessionBar
-        runningSessions={runningSessions}
-        projects={projects}
-        onNavigate={handleSessionNavigate}
-        onStopSession={(projectId) => {
-          const p = projects.find((pr) => String(pr.id) === String(projectId));
-          if (p) {
-            const session = runningSessions[projectId];
-            const now = new Date().toISOString();
-            const duration = session?.startedAt
-              ? Math.floor((Date.now() - new Date(session.startedAt).getTime()) / 1000)
-              : 0;
-            if (duration > 0) {
-              const updatedLog = (p.activityLog || []).map((entry) =>
-                entry.startTime === session?.startedAt && !entry.endTime
-                  ? { ...entry, endTime: now, duration }
-                  : entry
-              );
-              const newTimeline = [...(p.timeline || []), { date: now, action: `Stopped session (${Math.round(duration / 60)}m)` }];
-              handleUpdateProject({ ...p, activityLog: updatedLog, timeline: newTimeline });
-            }
-            removeRunningSession(projectId);
-            addToast('Session stopped');
-          }
-        }}
-      />
-
-      <NewProjectModal
-        isOpen={isNewModalOpen}
-        onClose={() => setIsNewModalOpen(false)}
-        onSave={handleNewProject}
-      />
-
-      <SettingsPanel />
-    </div>
+    </>
   );
 }
 
-export default function DashboardPage() {
+export default function ProjectsPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[var(--bg-primary)]" />}>
-      <DashboardContent />
+    <Suspense fallback={null}>
+      <ProjectsContent />
     </Suspense>
   );
 }

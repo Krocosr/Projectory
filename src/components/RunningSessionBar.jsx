@@ -3,10 +3,16 @@ import { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PropTypes from 'prop-types';
 
-function formatElapsed(startedAt) {
-  const sec = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
+function formatElapsed(startedAt, timerMode, limit) {
+  const sec = Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000));
+  
+  let displaySec = sec;
+  if (timerMode === 'countdown' || timerMode === 'pomodoro') {
+    displaySec = Math.max(0, limit - sec);
+  }
+
+  const m = Math.floor(displaySec / 60);
+  const s = displaySec % 60;
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
@@ -26,8 +32,9 @@ export default function RunningSessionBar({ runningSessions, projects, onNavigat
       intervalRef.current = setInterval(() => {
         Object.keys(timersRef.current).forEach((id) => {
           const el = document.getElementById(`timer-${id}`);
-          if (el && timersRef.current[id]) {
-            el.textContent = formatElapsed(timersRef.current[id]);
+          const s = timersRef.current[id];
+          if (el && s) {
+            el.textContent = formatElapsed(s.startedAt, s.timerMode, s.limit);
           }
         });
       }, 1000);
@@ -40,7 +47,7 @@ export default function RunningSessionBar({ runningSessions, projects, onNavigat
     };
   }, [entries.length]);
 
-  entries.forEach(([id, s]) => { timersRef.current[id] = s.startedAt; });
+  entries.forEach(([id, s]) => { timersRef.current[id] = s; });
 
   if (entries.length === 0) return null;
 
@@ -68,7 +75,7 @@ export default function RunningSessionBar({ runningSessions, projects, onNavigat
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] text-[var(--text-muted)]">{session.launchItemIds?.length || 0} apps</span>
                   <span id={`timer-${projectId}`} className="text-[10px] font-mono tabular-nums text-[var(--accent-clay)]">
-                    {session.startedAt ? formatElapsed(session.startedAt) : '00:00'}
+                    {session.startedAt ? formatElapsed(session.startedAt, session.timerMode, session.limit) : '00:00'}
                   </span>
                 </div>
               </div>

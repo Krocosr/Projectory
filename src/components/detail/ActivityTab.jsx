@@ -4,6 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import PropTypes from 'prop-types';
 import { SectionHeader } from '@/components/ui';
 import { pickFile as desktopPickFile, pickFolder as desktopPickFolder, isDesktop, launchItems as desktopLaunchItems } from '@/lib/desktop';
+import useProjectStore from '@/store/useProjectStore';
+import { useConfirm } from '@/components/ConfirmModal';
+import { useSessionManager } from '@/hooks/useSessionManager';
 
 let nextLaunchId = Date.now();
 
@@ -36,11 +39,11 @@ function playSound() {
 const DEFAULT_CONFIG = {
   mode: 'pomodoro', workDuration: 25, shortBreakDuration: 5, longBreakDuration: 15,
   sessionsBeforeLongBreak: 4, soundEnabled: true, autoCycle: true,
-  checkpointsEnabled: false, checkpointInterval: 15,
+  checkpointsEnabled: false, checkpointInterval: 15, runOnAppsRun: false,
 };
 
 function SettingsModal({ timerMode, timerConfig, updateTimerConfig, customDuration, setCustomDuration, onClose }) {
-  const { workDuration, shortBreakDuration, longBreakDuration, sessionsBeforeLongBreak, soundEnabled, autoCycle, checkpointsEnabled, checkpointInterval } = timerConfig;
+  const { workDuration, shortBreakDuration, longBreakDuration, sessionsBeforeLongBreak, soundEnabled, autoCycle, checkpointsEnabled, checkpointInterval, runOnAppsRun } = timerConfig;
 
   return (
     <AnimatePresence>
@@ -71,31 +74,34 @@ function SettingsModal({ timerMode, timerConfig, updateTimerConfig, customDurati
           </div>
 
           {timerMode === 'pomodoro' && (
-            <div className="space-y-4">
-              <SettingRow label="Focus (min)" value={workDuration} onChange={(v) => updateTimerConfig({ workDuration: v })} min={1} max={180} />
-              <SettingRow label="Short Break (min)" value={shortBreakDuration} onChange={(v) => updateTimerConfig({ shortBreakDuration: v })} min={1} max={30} />
-              <SettingRow label="Long Break (min)" value={longBreakDuration} onChange={(v) => updateTimerConfig({ longBreakDuration: v })} min={1} max={60} />
-              <SettingRow label="Sessions / Long Break" value={sessionsBeforeLongBreak} onChange={(v) => updateTimerConfig({ sessionsBeforeLongBreak: v })} min={1} max={20} />
-              <ToggleRow label="Auto-Cycle" enabled={autoCycle} onToggle={() => updateTimerConfig({ autoCycle: !autoCycle })} />
-              <ToggleRow label="Sound" enabled={soundEnabled} onToggle={() => updateTimerConfig({ soundEnabled: !soundEnabled })} />
-            </div>
+              <div className="space-y-4">
+                <SettingRow label="Focus (min)" value={workDuration} onChange={(v) => updateTimerConfig({ workDuration: v })} min={1} max={180} />
+                <SettingRow label="Short Break (min)" value={shortBreakDuration} onChange={(v) => updateTimerConfig({ shortBreakDuration: v })} min={1} max={30} />
+                <SettingRow label="Long Break (min)" value={longBreakDuration} onChange={(v) => updateTimerConfig({ longBreakDuration: v })} min={1} max={60} />
+                <SettingRow label="Sessions / Long Break" value={sessionsBeforeLongBreak} onChange={(v) => updateTimerConfig({ sessionsBeforeLongBreak: v })} min={1} max={20} />
+                <ToggleRow label="Auto-Cycle" enabled={autoCycle} onToggle={() => updateTimerConfig({ autoCycle: !autoCycle })} />
+                <ToggleRow label="Sound" enabled={soundEnabled} onToggle={() => updateTimerConfig({ soundEnabled: !soundEnabled })} />
+                <ToggleRow label="Start Timer when Apps Launch" enabled={runOnAppsRun} onToggle={() => updateTimerConfig({ runOnAppsRun: !runOnAppsRun })} />
+              </div>
           )}
 
           {timerMode === 'countdown' && (
-            <div className="space-y-4">
-              <SettingRow label="Duration (min)" value={customDuration} onChange={(v) => { setCustomDuration(v); updateTimerConfig({ workDuration: v }); }} min={1} max={180} />
-              <ToggleRow label="Sound" enabled={soundEnabled} onToggle={() => updateTimerConfig({ soundEnabled: !soundEnabled })} />
-            </div>
+              <div className="space-y-4">
+                <SettingRow label="Duration (min)" value={customDuration} onChange={(v) => { setCustomDuration(v); updateTimerConfig({ workDuration: v }); }} min={1} max={180} />
+                <ToggleRow label="Sound" enabled={soundEnabled} onToggle={() => updateTimerConfig({ soundEnabled: !soundEnabled })} />
+                <ToggleRow label="Start Timer when Apps Launch" enabled={runOnAppsRun} onToggle={() => updateTimerConfig({ runOnAppsRun: !runOnAppsRun })} />
+              </div>
           )}
 
           {timerMode === 'countup' && (
-            <div className="space-y-4">
-              <ToggleRow label="Checkpoints" enabled={checkpointsEnabled} onToggle={() => updateTimerConfig({ checkpointsEnabled: !checkpointsEnabled })} />
-              {checkpointsEnabled && (
-                <SettingRow label="Every (min)" value={checkpointInterval} onChange={(v) => updateTimerConfig({ checkpointInterval: v })} min={1} max={60} />
-              )}
-              <ToggleRow label="Sound" enabled={soundEnabled} onToggle={() => updateTimerConfig({ soundEnabled: !soundEnabled })} />
-            </div>
+              <div className="space-y-4">
+                <ToggleRow label="Checkpoints" enabled={checkpointsEnabled} onToggle={() => updateTimerConfig({ checkpointsEnabled: !checkpointsEnabled })} />
+                {checkpointsEnabled && (
+                  <SettingRow label="Every (min)" value={checkpointInterval} onChange={(v) => updateTimerConfig({ checkpointInterval: v })} min={1} max={60} />
+                )}
+                <ToggleRow label="Sound" enabled={soundEnabled} onToggle={() => updateTimerConfig({ soundEnabled: !soundEnabled })} />
+                <ToggleRow label="Start Timer when Apps Launch" enabled={runOnAppsRun} onToggle={() => updateTimerConfig({ runOnAppsRun: !runOnAppsRun })} />
+              </div>
           )}
 
           <div className="flex justify-end mt-6 pt-3 border-t border-[var(--border-subtle)]">
@@ -144,7 +150,10 @@ function ToggleRow({ label, enabled, onToggle }) {
 }
 
 export default function ActivityTab({ project, onUpdateProject, onNotify }) {
-  const timerConfig = useMemo(() => {
+  const runningSessions = useProjectStore((s) => s.runningSessions);
+  const setRunningSession = useProjectStore((s) => s.setRunningSession);
+
+    const timerConfig = useMemo(() => {
     const tc = project.timerConfig || DEFAULT_CONFIG;
     return {
       ...DEFAULT_CONFIG,
@@ -156,8 +165,12 @@ export default function ActivityTab({ project, onUpdateProject, onNotify }) {
       autoCycle: tc.autoCycle ?? DEFAULT_CONFIG.autoCycle,
       checkpointsEnabled: tc.checkpointsEnabled ?? DEFAULT_CONFIG.checkpointsEnabled,
       checkpointInterval: tc.checkpointInterval ?? DEFAULT_CONFIG.checkpointInterval,
+      runOnAppsRun: tc.runOnAppsRun ?? DEFAULT_CONFIG.runOnAppsRun,
     };
   }, [project.timerConfig]);
+
+  const confirm = useConfirm();
+  const { stopSession } = useSessionManager();
 
   const [timerMode, setTimerMode] = useState(timerConfig.mode);
   const [customDuration, setCustomDuration] = useState(timerConfig.workDuration);
@@ -342,7 +355,7 @@ export default function ActivityTab({ project, onUpdateProject, onNotify }) {
     }
   }, [timerState, workDuration, shortBreakDuration, longBreakDuration, sessionsBeforeLongBreak, soundEnabled, autoCycle, onNotify]);
 
-  const handleStart = () => {
+  const handleStart = async () => {
     startedAtRef.current = new Date().toISOString();
     setCheckpointCount(0);
     setLastCheckpoint(0);
@@ -368,7 +381,9 @@ export default function ActivityTab({ project, onUpdateProject, onNotify }) {
     setTimerState('idle');
     const endTime = new Date().toISOString();
     const duration = elapsed;
+    const p = projectRef.current;
 
+    let updatedProject = p;
     if (duration >= 10) {
       const label = timerMode === 'countup' && checkpointsEnabled
         ? `CountUp (${checkpointCount} checkpoints)`
@@ -381,16 +396,20 @@ export default function ActivityTab({ project, onUpdateProject, onNotify }) {
         duration,
         source: timerMode,
       };
-      const p = projectRef.current;
       const newLog = [...(p.activityLog || []), entry];
       const newTimeline = [...(p.timeline || []), {
         date: endTime,
         action: `Completed ${timerMode} session (${formatDuration(duration)})`,
       }];
-      onUpdateRef.current({ ...p, activityLog: newLog, timeline: newTimeline });
+      updatedProject = { ...p, activityLog: newLog, timeline: newTimeline };
+      onUpdateRef.current(updatedProject);
       onNotify?.(`${timerMode.charAt(0).toUpperCase() + timerMode.slice(1)} session: ${formatDuration(duration)}`);
     }
-  }, [elapsed, timerMode, checkpointsEnabled, checkpointCount, onNotify]);
+
+    if (timerConfig.runOnAppsRun && runningSessions[p.id]) {
+      stopSession(updatedProject, onUpdateRef.current, onNotify);
+    }
+  }, [elapsed, timerMode, checkpointsEnabled, checkpointCount, onNotify, timerConfig.runOnAppsRun, runningSessions, stopSession]);
 
   const updateTimerConfig = useCallback((updates) => {
     const p = projectRef.current;
@@ -427,7 +446,7 @@ export default function ActivityTab({ project, onUpdateProject, onNotify }) {
       newItems = [...(p.launchItems || []), { id: nextLaunchId++, ...form }];
     }
     onUpdate({ ...p, launchItems: newItems });
-    onNotifyRef.current(editingLaunchId ? 'Launch item updated' : 'Launch item added');
+    onNotify?.(editingLaunchId ? 'Launch item updated' : 'Launch item added');
     closeLaunchModal();
   };
 
@@ -435,7 +454,7 @@ export default function ActivityTab({ project, onUpdateProject, onNotify }) {
     const p = projectRef.current;
     const newItems = (p.launchItems || []).filter((it) => String(it.id) !== String(id));
     onUpdateRef.current({ ...p, launchItems: newItems });
-    onNotifyRef.current('Launch item removed');
+    onNotify?.('Launch item removed');
   };
 
   const handleMoveUp = (idx) => {
@@ -463,23 +482,74 @@ export default function ActivityTab({ project, onUpdateProject, onNotify }) {
     onUpdateRef.current({ ...p, launchItems: newItems });
   };
 
+  const handleSessionStop = useCallback(async () => {
+    const ok = await confirm('Stop the current session?');
+    if (!ok) return;
+    const p = projectRef.current;
+    stopSession(p, onUpdateRef.current, onNotify);
+  }, [confirm, stopSession, onNotify]);
+
   const handleLaunchItem = useCallback(async (item) => {
     const p = projectRef.current;
+    const existingSession = runningSessions[p.id];
+
+    if (existingSession?.launchItemIds?.includes(item.id)) {
+      onNotify?.(`${item.name} is already running`);
+      return;
+    }
+
     const now = new Date().toISOString();
-    const entry = {
-      itemId: item.id,
-      itemName: item.name || 'Unknown',
-      startTime: now,
-      source: 'launch',
-    };
-    const newLog = [...(p.activityLog || []), entry];
-    const newTimeline = [...(p.timeline || []), { date: now, action: `Launched ${item.name}` }];
-    onUpdateRef.current({ ...p, activityLog: newLog, timeline: newTimeline });
-    await desktopLaunchItems([item]);
-    onNotifyRef.current(`Launched ${item.name}`);
-  }, []);
+    const result = await desktopLaunchItems([item]);
+
+    if (result?.success) {
+      const existingIds = existingSession?.launchItemIds || [];
+      setRunningSession(p.id, {
+        status: 'running',
+        launchItemIds: [...existingIds, item.id],
+        startedAt: existingSession?.startedAt || now,
+        timerMode: existingSession?.timerMode || timerModeRef.current,
+      });
+
+      const entry = {
+        itemId: item.id,
+        itemName: item.name || 'Unknown',
+        startTime: now,
+        source: 'launch',
+      };
+      const newLog = [...(p.activityLog || []), entry];
+      const newTimeline = [...(p.timeline || []), { date: now, action: `Launched ${item.name}` }];
+      onUpdateRef.current({ ...p, activityLog: newLog, timeline: newTimeline });
+      onNotify?.(`Launched ${item.name}`);
+    } else if (!isDesktop()) {
+      onNotify?.(`${item.name}: launch only works in desktop app`);
+    }
+
+    if (timerConfig.runOnAppsRun && timerStateRef.current === 'idle') {
+      startedAtRef.current = new Date().toISOString();
+      setCheckpointCount(0);
+      setLastCheckpoint(0);
+      setElapsed(0);
+      
+      const mode = timerModeRef.current;
+      if (mode === 'countdown') {
+        setTimeLeft(customDurationRef.current * 60);
+      } else if (mode !== 'countup') {
+        const { workDuration } = projectRef.current.timerConfig || DEFAULT_CONFIG;
+        setTimeLeft(workDuration * 60);
+        setPomodoroPhase('focus');
+        setPomodoroSessionCount(0);
+        setPomodoroCycle(0);
+      }
+      setTimerState('running');
+      onNotify?.('Timer started with app launch');
+    }
+  }, [timerConfig.runOnAppsRun, onNotify, runningSessions, setRunningSession]);
 
   const launchItems = project.launchItems || [];
+
+  const session = runningSessions[project.id];
+  const isSessionActive = session?.status === 'running';
+  const sessionItemIds = session?.launchItemIds || [];
 
   const displayTime = timerMode === 'countup' ? elapsed : timeLeft;
   const displayMinutes = Math.floor(displayTime / 60);
@@ -521,16 +591,23 @@ export default function ActivityTab({ project, onUpdateProject, onNotify }) {
   return (
     <div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {isDesktop() && (
         <div>
           <SectionHeader
             label="Apps"
             action={
-              <button
-                onClick={openAddLaunch}
-                className="text-xs px-3 py-1.5 rounded-lg bg-[var(--accent-clay)]/10 text-[var(--accent-clay)] hover:bg-[var(--accent-clay)]/20 transition-colors font-medium"
-              >
-                + Add Item
-              </button>
+              isSessionActive ? (
+                <button onClick={handleSessionStop} className="text-xs px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors font-medium">
+                  Stop Session
+                </button>
+              ) : (
+                <button
+                  onClick={openAddLaunch}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-[var(--accent-clay)]/10 text-[var(--accent-clay)] hover:bg-[var(--accent-clay)]/20 transition-colors font-medium"
+                >
+                  + Add Item
+                </button>
+              )
             }
           />
           {launchItems.length === 0 ? (
@@ -539,20 +616,36 @@ export default function ActivityTab({ project, onUpdateProject, onNotify }) {
             </div>
           ) : (
             <div className="space-y-2">
-              {launchItems.map((item, idx) => (
+              {launchItems.map((item, idx) => {
+                const isRunning = sessionItemIds.includes(item.id);
+                return (
                 <div key={item.id} className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-4">
                   <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
-                      item.type === 'command' ? 'bg-green-500/10 text-green-500' : 'bg-indigo-500/10 text-indigo-400'
-                    }`}>
-                      {item.type === 'command' ? '>_' : 'A'}
+                    <div className="relative">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
+                        item.type === 'command' ? 'bg-green-500/10 text-green-500' : 'bg-indigo-500/10 text-indigo-400'
+                      }`}>
+                        {item.type === 'command' ? '>_' : 'A'}
+                      </div>
+                      {isRunning && (
+                        <div className="absolute -top-1 -right-1 w-3 h-3">
+                          <span className="absolute inset-0 rounded-full bg-green-500 animate-ping opacity-75" />
+                          <span className="absolute inset-0 rounded-full bg-green-500" />
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-[var(--text-primary)] truncate">{item.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-[var(--text-primary)] truncate">{item.name}</p>
+                        {isRunning && (
+                          <span className="text-[10px] font-medium text-green-500 bg-green-500/10 px-1.5 py-0.5 rounded-full shrink-0">Running</span>
+                        )}
+                      </div>
                       <p className="text-xs text-[var(--text-muted)] truncate font-mono">
                         {item.type === 'command' ? item.command : item.path}
                       </p>
                     </div>
+                    {isSessionActive ? null : (
                     <div className="flex items-center gap-1">
                       <button onClick={() => handleLaunchItem(item)} className="text-xs px-2.5 py-1 rounded-lg bg-[var(--accent-clay)]/10 text-[var(--accent-clay)] hover:bg-[var(--accent-clay)]/20 transition-colors font-medium" title={`Launch ${item.name}`}>Run</button>
                       <button onClick={() => toggleKillOnStop(item.id)} title={item.killOnStop ? 'Will kill on stop' : 'Will not kill on stop'} className={`text-xs px-2 py-0.5 rounded-full transition-colors ${item.killOnStop ? 'bg-red-500/10 text-red-400' : 'bg-[var(--border-subtle)] text-[var(--text-muted)]'}`}>{item.killOnStop ? 'Kill' : 'No-kill'}</button>
@@ -561,6 +654,7 @@ export default function ActivityTab({ project, onUpdateProject, onNotify }) {
                       <button onClick={() => openEditLaunch(item.id)} className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
                       <button onClick={() => handleRemoveLaunch(item.id)} className="p-1 text-[var(--text-muted)] hover:text-red-400 transition-colors"><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
                     </div>
+                    )}
                   </div>
                   {item.type === 'command' && item.wait && (
                     <div className="mt-2 flex items-center gap-1.5">
@@ -568,12 +662,13 @@ export default function ActivityTab({ project, onUpdateProject, onNotify }) {
                     </div>
                   )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
-
-        <div>
+        )}
+        <div className={!isDesktop() ? 'lg:col-span-2' : ''}>
           <SectionHeader label="Timer" />
 
           <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-6">
@@ -702,7 +797,7 @@ export default function ActivityTab({ project, onUpdateProject, onNotify }) {
               <p className="text-xs font-semibold text-[var(--text-muted)] mb-2 sticky top-0 bg-[var(--bg-secondary)] py-1">{date}</p>
               <div className="space-y-1">
                   {entries.map((entry, i) => (
-                    <div key={i} className="flex items-center justify-between py-1.5 px-3 rounded-lg hover:bg-[var(--border-subtle)]/30 transition-colors">
+                    <div key={i} className="flex items-center justify-between py-1.5 px-3 rounded-lg hover:bg-[var(--bg-secondary)] transition-colors">
                       <div className="flex items-center gap-2">
                         <span className={`w-1.5 h-1.5 rounded-full ${
                           entry.endTime ? 'bg-[var(--accent-clay)]' : 'bg-yellow-500'

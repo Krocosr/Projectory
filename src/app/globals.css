@@ -100,6 +100,7 @@ h1, h2, h3, h4, h5, h6 {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
 }
 
 @layer utilities {
@@ -113,6 +114,19 @@ h1, h2, h3, h4, h5, h6 {
   text-security: disc;
   cursor: default;
   user-select: none;
+}
+
+@media (max-width: 1023px) {
+  body {
+    padding-top: 56px;
+  }
+  .content-with-sidebars {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+  .sidebar-open .sidebar-backdrop {
+    display: block;
+  }
 }
 
 @keyframes shake {
@@ -168,4 +182,10 @@ h1, h2, h3, h4, h5, h6 {
 .nav-sort-select:focus {
   border-color: color-mix(in srgb, var(--accent-clay) 40%, transparent);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-clay) 30%, transparent);
+}
+
+.cal-hover rect:hover {
+  stroke: var(--text-primary);
+  stroke-width: 1.5;
+  filter: brightness(1.3);
 }

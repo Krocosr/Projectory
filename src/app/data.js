@@ -97,6 +97,11 @@ export const seedProjects = [
       { id: 104, text: 'Write unit tests for API routes', priority: 'Medium', done: true, createdAt: '2026-05-18T10:00:00Z' },
       { id: 105, text: 'Update project documentation', priority: 'Low', done: false, createdAt: '2026-05-18T10:00:00Z' },
     ],
+    launchItems: [
+      { name: 'VS Code', type: 'app', path: 'code', command: '', workingDir: '', wait: false, killOnStop: true },
+      { name: 'npm run dev', type: 'command', path: '.', command: 'npm run dev', workingDir: '.', wait: false, killOnStop: true },
+    ],
+    timerConfig: { mode: 'pomodoro', workDuration: 25, shortBreakDuration: 5, longBreakDuration: 15, sessionsBeforeLongBreak: 4, soundEnabled: true, autoCycle: true, checkpointsEnabled: false, checkpointInterval: 15, runOnAppsRun: true },
     notes: 'OAuth callback URL needs to be registered in Google Cloud Console. Using Passport.js with Google strategy.',
     links: [
       { url: 'https://console.cloud.google.com', title: 'Google Cloud Console' },

@@ -4,10 +4,10 @@
   "version": "0.11.1",
   "identifier": "com.krocosr.projectory",
   "build": {
-    "frontendDist": "../.next",
+    "frontendDist": "../out",
     "devUrl": "http://localhost:3000",
     "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build && xcopy /E /I /Y .next\\static .next\\_next\\static && copy .next\\server\\app\\index.html .next\\index.html"
+    "beforeBuildCommand": "node scripts/tauri-build.mjs"
   },
   "app": {
     "windows": [
