@@ -1,6 +1,7 @@
 import { runMigrations, needsMigration, getCurrentVersion } from './migrations';
 import { BACKUP_KEY, ARCHIVE_TTL_MS, API_SYNC_DEBOUNCE_MS } from './constants';
 import db from './db';
+import { postSync } from './syncChannel';
 
 const STORAGE_KEY = 'projectory_projects';
 
@@ -170,6 +171,7 @@ export function saveProjects(projects) {
 
   createAutoBackup(projects);
   syncToApi(projects);
+  postSync();
 
   if (!lsOk) {
     return { success: false, error: 'localStorage is full. Data still saved to IndexedDB.' };

@@ -9,6 +9,7 @@ export default defineConfig({
     globals: true,
     setupFiles: './vitest.setup.js',
     css: true,
+    exclude: ['**/node_modules/**', '**/dist/**', '**/cypress/**', '**/.{idea,git,cache,output,temp}/**', '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,playwright}.config.*', 'e2e/'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -16,6 +17,7 @@ export default defineConfig({
         'node_modules/',
         '.next/',
         'coverage/',
+        'e2e/',
         '*.config.js',
         '*.config.mjs',
         'scripts/',

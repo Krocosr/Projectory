@@ -1,9 +1,11 @@
 <p align="center">
+  <img src="https://img.shields.io/badge/version-0.12.0-blue" alt="Version" />
   <img src="https://img.shields.io/badge/status-active-brightgreen" alt="Status" />
-  <img src="https://img.shields.io/github/license/Krocosr/Projectory" alt="License" />
+  <img src="https://img.shields.io/badge/license-GPL--2.0-blue.svg" alt="License" />
   <img src="https://img.shields.io/badge/Next.js-14-black?logo=next.js" alt="Next.js 14" />
   <img src="https://img.shields.io/badge/React-18-61DAFB?logo=react" alt="React 18" />
   <img src="https://img.shields.io/badge/Tailwind-3-06B6D4?logo=tailwindcss" alt="Tailwind CSS" />
+  <img src="https://img.shields.io/badge/Tauri-2-FFC131?logo=tauri" alt="Tauri 2" />
   <br/>
   <img src="https://img.shields.io/github/actions/workflow/status/Krocosr/Projectory/ci.yml?branch=master" alt="CI" />
   <img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs Welcome" />
@@ -14,8 +16,8 @@
 </h1>
 
 <p align="center">
-  <b>A sleek, client-first SPA for juggling projects, todos, deadlines, and workspace notes — all in one place.</b><br/>
-  Built with <b>Next.js 14</b> + <b>React 18</b>. Zero backend setup. Works offline. Syncs when online.
+  <b>A client-first SPA + desktop app for juggling projects, todos, deadlines, and workspace notes.</b><br/>
+  Built with <b>Next.js 14</b> + <b>Tauri 2</b>. Zero backend setup. Works offline. Syncs when online.
 </p>
 
 <p align="center">
@@ -26,28 +28,33 @@
 
 ## Why Only Specialized Features?
 
-Projectory doesn't try to replace Jira, Notion, or Linear. Instead, it focuses on **what's genuinely useful** for a single developer managing multiple projects:
+Projectory doesn't try to replace Jira, Notion, or Linear. Instead, it focuses on what's genuinely useful for a single developer managing multiple projects:
 
 - **A dashboard that fits in one screen** — card grid, not a spreadsheet. See status, progress, deadline at a glance.
 - **Todos with drag & drop** — reorder, prioritize, toggle. No heavy workflow engine.
 - **Per-project scratchpad** — auto-saved notes per project, not a sprawling wiki.
-- **No feature bloat** — intentionally absent: complex permissions, Gantt charts, integrations with 50+ services. If you need those, tools like Linear or Notion are a better fit. Projectory is for **your personal workflow**, not your company's.
+- **Desktop app** — native window with app launcher, file dialogs, and system tray.
+- **No feature bloat** — intentionally absent: complex permissions, Gantt charts, integrations with 50+ services. If you need those, tools like Linear or Notion are a better fit. Projectory is for your personal workflow, not your company's.
 
 ---
 
 ## Features
 
-- **Dashboard** — Card grid with status badges, progress bars, inline search & filtering
-- **Project Detail** — 5 tabbed views: Overview - Todos - Workspace - Timeline - Settings
+- **Dashboard** — Card grid with DnD sorting, status badges, progress bars, inline search & filtering
+- **Dashboard Route** (`/dashboard`) — 3-column layout: urgent todos panel, focus picker/swipe deck, activity calendar + stats cards
+- **LeftSidebar Navigation** — Dashboard / Projects / Insights (coming soon) / About
+- **Project Detail** — 7 tabbed views: Overview - Todos - Workspace - Scratchpad - Apps & Activity - Timeline - Settings
+- **Timer** — Pomodoro / Countdown / CountUp modes with session logging and configurable intervals
+- **App Launcher** — Per-project launch items (apps or shell commands) on desktop (Tauri)
+- **Desktop App** — Native Tauri v2 app with window management, file/folder dialogs, and app launching
 - **Todo Manager** — Add, edit, reorder (drag & drop), toggle done, set priority, assign deadlines
 - **Workspace (Notes)** — Per-project scratchpad with 600ms auto-save debounce
 - **Link Library** — Save and organize per-project links & assets
-- **Activity Timeline** — Auto-logged project activity
+- **Activity Timeline** — Auto-logged project activity with session logs
 - **Dark Mode** — Toggleable, persisted, respects `prefers-color-scheme`
 - **Data Import/Export** — JSON export/import via the dashboard header
 - **Live Sync** — 3-second polling keeps the browser in sync with the API
 - **Context Menus** — Right-click or "More" button on cards & todos
-- **Workspace Launcher** (planned) — Launch multiple apps with a single click
 - **CLI Tool** — Manage everything from the terminal: `node scripts/projectory-cli.mjs list`
 
 <p align="center">
@@ -61,13 +68,15 @@ Projectory doesn't try to replace Jira, Notion, or Linear. Instead, it focuses o
 | Layer | Choice |
 |-------|--------|
 | **Framework** | [Next.js 14](https://nextjs.org/) (App Router) |
+| **Desktop** | [Tauri 2](https://v2.tauri.app/) (Rust backend) |
 | **UI** | React 18 |
 | **Styling** | [Tailwind CSS](https://tailwindcss.com/) 3 + CSS custom properties |
 | **Animation** | [Framer Motion](https://www.framer.com/motion/) |
 | **Drag & Drop** | [@hello-pangea/dnd](https://github.com/hello-pangea/dnd) + [@dnd-kit](https://dndkit.com/) |
-| **State** | Zustand (`useProjectStore`) |
+| **State** | Zustand |
 | **Storage** | `localStorage` + IndexedDB (Dexie) + file-based API |
 | **Routing** | `useSearchParams` (`?project=`) |
+| **Testing** | Vitest + React Testing Library + Playwright |
 
 ---
 
@@ -77,10 +86,21 @@ Projectory doesn't try to replace Jira, Notion, or Linear. Instead, it focuses o
 git clone https://github.com/Krocosr/Projectory.git
 cd deadliner
 npm install
+```
+
+### Web
+
+```bash
 npm run dev
 ```
 
-Open **http://localhost:3000** (auto-probes next available port if busy) — seed data loads automatically on first visit.
+Open **http://localhost:3000** — seed data loads automatically on first visit.
+
+### Desktop (Tauri)
+
+```bash
+npm run tauri:dev
+```
 
 ### Production
 
@@ -94,6 +114,18 @@ npm start
 ```bash
 docker compose up --build
 ```
+
+---
+
+## Testing
+
+```bash
+npm test                  # Unit + component tests (Vitest)
+npm run test:e2e          # E2E tests (Playwright)
+npm run test:coverage     # With coverage report
+```
+
+See [TESTING.md](TESTING.md) for full guide.
 
 ---
 
@@ -153,7 +185,7 @@ Projectory includes a [Model Context Protocol](https://modelcontextprotocol.io/)
 3. **Done** — your AI assistant can now manage your projects and todos.
 
 or
-**Copy-Paste this to your agent:** 
+**Copy-Paste this to your agent:**
 > Read and follow the setup instructions at https://raw.githubusercontent.com/Krocosr/Projectory/master/README.md to configure yourself.
 
 ---
@@ -184,30 +216,46 @@ CLI: `node scripts/projectory-cli.mjs list` (set `PROJECTORY_API` env var for cu
 ```
 src/
 ├── app/
-│   ├── api/projects/       # REST API routes (Next.js Route Handlers)
-│   ├── data.js             # Seed data, default form, project factory
-│   └── page.js             # Single-page state hub & routing
+│   ├── (app)/               # App shell (sidebar + content)
+│   │   ├── dashboard/       # 3-column dashboard route
+│   │   ├── layout.js        # LeftSidebar + ActiveTodosSidebar
+│   │   └── page.js          # Main hub (?project= routing)
+│   ├── api/projects/        # REST API routes
+│   ├── data.js              # Seed data, default form, project factory
+│   └── error.js             # Global error boundary
 ├── components/
-│   ├── detail/              # Detail view sub-components
+│   ├── detail/              # Detail view sub-components (7 tabs)
+│   ├── ui/                  # Shared UI atoms (Button, Toast, etc.)
+│   ├── LeftSidebar.jsx      # Nav panel (Dashboard/Projects/Insights/About)
 │   ├── DashboardHeader.jsx
-│   ├── NewProjectModal.jsx
 │   ├── ProjectCard.jsx
 │   └── ProjectDetailView.jsx
 ├── lib/
-│   ├── constants.js        # Statuses, colors, z-index tokens
-│   ├── dateUtils.js        # Date formatting helpers
-│   ├── fileStorage.js      # Server-side file I/O
-│   ├── migrations.js       # localStorage schema migration
-│   ├── storage.js          # localStorage CRUD + API sync
-│   ├── db.js               # IndexedDB (Dexie) layer
-│   ├── validation.js       # Zod schemas for API validation
-│   └── search.js           # Full-text search
-data/
-└── projects.json           # API data file (gitignored)
+│   ├── constants.js         # Statuses, colors, z-index tokens
+│   ├── storage.js           # localStorage CRUD + API sync
+│   ├── db.js                # IndexedDB (Dexie) layer
+│   ├── fileStorage.js       # Server-side file I/O
+│   ├── desktop.js           # Tauri bridge (file dialogs, app launch)
+│   ├── migrations.js        # Schema migration
+│   ├── validation.js        # Zod schemas
+│   └── search.js            # Full-text search
+├── __tests__/               # Unit + component tests
+src-tauri/                   # Tauri v2 desktop app (Rust)
+├── src/main.rs
+├── src/lib.rs
+├── tauri.conf.json
+└── Cargo.toml
 mcp-server/
-├── package.json            # MCP server dependencies
-└── index.mjs               # MCP server (8 tools)
-mcp.json                    # MCP client config
+├── package.json
+└── index.mjs                # MCP server (8 tools)
+scripts/
+├── projectory-cli.mjs       # Terminal project manager
+├── start.mjs                # Production server (auto-port)
+├── sync-version.mjs         # Sync version across configs
+└── tauri-build.mjs          # Build for Tauri (static export)
+data/
+└── projects.json            # API data file (gitignored)
+mcp.json                     # MCP client config
 ```
 
 ---
@@ -241,4 +289,4 @@ PRs are welcome! If you've got an idea for a feature or found a bug, open an iss
 
 ## License
 
-[MIT](LICENSE) — free to use, modify, and distribute.
+[GPL-2.0](LICENSE) — free to use, modify, and distribute.
