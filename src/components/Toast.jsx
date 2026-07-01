@@ -95,7 +95,7 @@ const TYPE_STYLES = {
 export default function ToastContainer({ toasts, onDismiss }) {
   return (
     <div 
-      className="fixed top-6 right-6 flex flex-col gap-2 items-end pointer-events-none"
+      className="fixed bottom-6 left-6 flex flex-col gap-2 items-start pointer-events-none"
       style={{ zIndex: Z_INDEX.TOAST }}
       aria-live="polite"
       aria-atomic="true"
@@ -105,9 +105,9 @@ export default function ToastContainer({ toasts, onDismiss }) {
         {toasts.map((toast) => (
           <motion.div
             key={toast.id}
-            initial={{ opacity: 0, x: 20, scale: 0.9 }}
-            animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: 20, scale: 0.9 }}
+            initial={{ opacity: 0, y: 20, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9 }}
             transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
             className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium pointer-events-auto ${TYPE_STYLES[toast.type] || TYPE_STYLES.success}`}
             role="alert"

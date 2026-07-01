@@ -29,8 +29,8 @@ export function SortableProjectCard({
   const style = transform ? {
     transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
     transition,
-    zIndex: isDragging ? 999 : 'auto',
-    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 999 : undefined,
+    opacity: isDragging ? 0.85 : undefined,
   } : undefined;
 
   return (

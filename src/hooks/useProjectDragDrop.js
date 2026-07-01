@@ -15,10 +15,9 @@ import { arrayMove } from '@dnd-kit/sortable';
  * @param {string} projectSortBy - Current sort mode
  * @param {Function} onReorder - Callback to update projects order
  * @param {Function} onSortChange - Callback to update sort mode
- * @param {Function} onError - Callback for error notifications
  * @returns {Object} - Drag-and-drop handlers and state
  */
-export function useProjectDragDrop(filteredProjects, projectSortBy, onReorder, onSortChange, onError) {
+export function useProjectDragDrop(filteredProjects, projectSortBy, onReorder, onSortChange) {
   const [isProjectDragging, setIsProjectDragging] = useState(false);
   const filteredProjectsRef = useRef(filteredProjects);
   const sortByRef = useRef(projectSortBy);
@@ -63,7 +62,7 @@ export function useProjectDragDrop(filteredProjects, projectSortBy, onReorder, o
       // Already unsorted - just reorder
       onReorder(reordered, false);
     }
-  }, [onReorder, onSortChange, onError]);
+  }, [onReorder, onSortChange]);
 
   return {
     sensors,

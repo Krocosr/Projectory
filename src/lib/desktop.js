@@ -1,14 +1,10 @@
-const isTauri = () => typeof window !== 'undefined' && window.__TAURI__;
-
 let tauriCore = null;
-let tauriShell = null;
 let tauriDialog = null;
 
 async function ensureTauri() {
   if (tauriCore) return true;
   try {
     tauriCore = await import('@tauri-apps/api/core');
-    tauriShell = await import('@tauri-apps/plugin-shell');
     tauriDialog = await import('@tauri-apps/plugin-dialog');
     return true;
   } catch {
@@ -16,7 +12,7 @@ async function ensureTauri() {
   }
 }
 
-export const isDesktop = () => isTauri();
+export const isDesktop = () => typeof window !== 'undefined' && window.__TAURI__;
 
 export async function pickFile() {
   if (!(await ensureTauri())) return null;
@@ -40,10 +36,10 @@ export async function launchItems(items) {
   }
 }
 
-export async function stopItem(itemId) {
+export async function stopItem(itemName) {
   if (!(await ensureTauri())) return { success: false };
   try {
-    await tauriCore.invoke('stop_item', { itemId });
+    await tauriCore.invoke('stop_item', { itemName });
     return { success: true };
   } catch (e) {
     return { success: false, error: e.message };

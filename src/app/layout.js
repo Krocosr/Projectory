@@ -16,7 +16,7 @@ const dmSans = DM_Sans({
 });
 
 export const metadata = {
-  title: 'Deadliner — Personal Project OS',
+  title: 'Projectory',
   description: 'A personal project operating system for solo creators',
   other: {
     'theme-color': '#D4815B',
@@ -27,6 +27,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${fraunces.variable} ${dmSans.variable}`}>
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#D4815B" />
         <link rel="icon" href="/exports/favicon.svg" type="image/svg+xml" />

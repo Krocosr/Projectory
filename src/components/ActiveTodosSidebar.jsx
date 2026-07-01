@@ -120,11 +120,11 @@ export default function ActiveTodosSidebar({ isOpen, todos, onToggleTodo, onNavi
     <AnimatePresence>
       {isOpen && (
         <motion.aside
-          initial={{ width: 0, opacity: 0 }}
+          initial={false}
           animate={{ width: 380, opacity: 1 }}
           exit={{ width: 0, opacity: 0 }}
           transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-          className="shrink-0 bg-[var(--bg-primary)] border-l border-[var(--border-subtle)] shadow-2xl flex flex-col overflow-hidden h-screen fixed right-0 top-0"
+          className="shrink-0 bg-[var(--bg-primary)] border-l border-[var(--border-subtle)] flex-col overflow-hidden h-screen fixed right-0 top-0 hidden lg:flex"
           role="complementary"
           aria-label="Active todos sidebar"
         >

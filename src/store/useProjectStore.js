@@ -1,45 +1,30 @@
 import { create } from 'zustand';
 import { loadProjects, saveProjects, recalculateProject } from '@/lib/storage';
 import { createProject as createProjectUtil } from '@/app/data';
+import { TOAST_DURATION_MS, UNDO_TOAST_DURATION_MS, MAX_VISIBLE_TOASTS } from '@/lib/constants';
 
-function getInitialState() {
-  if (typeof window === 'undefined') {
-    return {
-      projects: [],
-      selectedProject: null,
-      ready: false,
-      isLeftSidebarOpen: true,
-    };
-  }
-  const projects = loadProjects() || [];
-  const param = new URLSearchParams(window.location.search).get('project');
-  const selectedProject = param ? projects.find((p) => String(p.id) === param) || null : null;
-  return {
-    projects,
-    selectedProject,
-    ready: projects.length > 0,
-    isLeftSidebarOpen: localStorage.getItem('projectory_left_sidebar_open') !== 'false',
-  };
-}
+let toastIdCounter = 0;
 
-const useProjectStore = create((set, get) => ({
-  // Core state — eagerly initialized from localStorage + URL params
-  ...getInitialState(),
-
-  // UI state
+const INITIAL_STATE = {
+  projects: [],
+  selectedProject: null,
+  ready: false,
+  isLeftSidebarOpen: true,
   activeFilter: 'All',
   searchQuery: '',
-  projectSortBy: typeof window !== 'undefined'
-    ? localStorage.getItem('projectory_project_sort') || 'unsorted'
-    : 'unsorted',
+  projectSortBy: 'unsorted',
   isDarkMode: false,
   isStreamerMode: false,
   isSidebarOpen: false,
   isNewModalOpen: false,
   showSettings: false,
-  runningSessions: typeof window !== 'undefined'
-    ? (() => { try { return JSON.parse(localStorage.getItem('projectory_running_sessions') || '{}'); } catch { return {}; } })()
-    : {},
+  toasts: [],
+  activityDates: [],
+  runningSessions: {},
+};
+
+const useProjectStore = create((set, get) => ({
+  ...INITIAL_STATE,
 
   // Actions
   setProjects: (projects) => set({ projects }),
@@ -74,7 +59,12 @@ const useProjectStore = create((set, get) => ({
     set({ isStreamerMode: isStreamer });
   },
 
-  setIsSidebarOpen: (isOpen) => set({ isSidebarOpen: isOpen }),
+  setIsSidebarOpen: (isOpen) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('projectory_right_sidebar_open', String(isOpen));
+    }
+    set({ isSidebarOpen: isOpen });
+  },
 
   setIsNewModalOpen: (isOpen) => set({ isNewModalOpen: isOpen }),
 
@@ -85,6 +75,41 @@ const useProjectStore = create((set, get) => ({
       localStorage.setItem('projectory_left_sidebar_open', String(isOpen));
     }
     set({ isLeftSidebarOpen: isOpen });
+  },
+
+  // Toast actions
+  addToast: (message, type = 'success', options = {}) => {
+    const id = ++toastIdCounter;
+    const { onUndo, undoLabel = 'Undo' } = options;
+    const hasAction = !!onUndo;
+    const duration = hasAction ? UNDO_TOAST_DURATION_MS : TOAST_DURATION_MS;
+
+    set((state) => {
+      const updated = state.toasts.length >= MAX_VISIBLE_TOASTS
+        ? state.toasts.slice(1)
+        : state.toasts;
+      return { toasts: [...updated, { id, message, type, onUndo, undoLabel }] };
+    });
+
+    setTimeout(() => {
+      get().dismissToast(id);
+    }, duration);
+  },
+
+  dismissToast: (id) => set((state) => ({
+    toasts: state.toasts.filter((t) => t.id !== id),
+  })),
+
+  // Activity tracking
+  recordActivity: () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const current = get().activityDates;
+    if (current.includes(today)) return;
+    const next = [...current, today];
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('projectory_activity_dates', JSON.stringify(next));
+    }
+    set({ activityDates: next });
   },
 
   setRunningSession: (projectId, session) => set((state) => {
@@ -103,6 +128,22 @@ const useProjectStore = create((set, get) => ({
   }),
 
   // Complex actions
+  rehydrate: () => {
+    if (typeof window === 'undefined') return;
+    const projects = loadProjects() || [];
+    const param = new URLSearchParams(window.location.search).get('project');
+    set({
+      projects,
+      selectedProject: param ? projects.find((p) => String(p.id) === param) || null : null,
+      ready: projects.length > 0,
+      isLeftSidebarOpen: localStorage.getItem('projectory_left_sidebar_open') !== 'false',
+      projectSortBy: localStorage.getItem('projectory_project_sort') || 'unsorted',
+      isSidebarOpen: localStorage.getItem('projectory_right_sidebar_open') === 'true',
+      activityDates: (() => { try { return JSON.parse(localStorage.getItem('projectory_activity_dates') || '[]'); } catch { return []; } })(),
+      runningSessions: (() => { try { return JSON.parse(localStorage.getItem('projectory_running_sessions') || '{}'); } catch { return {}; } })(),
+    });
+  },
+
   initializeProjects: () => {
     if (typeof window === 'undefined') return;
     const s = get();
@@ -122,6 +163,7 @@ const useProjectStore = create((set, get) => ({
 
     if (result.success) {
       set({ projects: updatedProjects });
+      get().recordActivity();
     }
 
     return result;
@@ -143,6 +185,7 @@ const useProjectStore = create((set, get) => ({
         projects: updatedProjects,
         selectedProject: currentSelected?.id === recalculated.id ? recalculated : currentSelected
       });
+      get().recordActivity();
     }
 
     return result;
@@ -272,6 +315,7 @@ const useProjectStore = create((set, get) => ({
 
     if (result.success) {
       set({ projects: updatedProjects });
+      get().recordActivity();
     }
 
     return result;

@@ -82,7 +82,7 @@ function AboutDialog({ onClose }) {
         <div className="px-6 py-5 space-y-5">
           <div>
             <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Version</p>
-            <p className="text-sm text-[var(--text-primary)] mt-1 font-medium">0.11.3</p>
+            <p className="text-sm text-[var(--text-primary)] mt-1 font-medium">0.11.4</p>
           </div>
 
           <div className="space-y-3">
@@ -136,14 +136,11 @@ export default function LeftSidebar() {
   const router = useRouter();
   const isLeftSidebarOpen = useProjectStore((s) => s.isLeftSidebarOpen);
   const setIsLeftSidebarOpen = useProjectStore((s) => s.setIsLeftSidebarOpen);
-  const selectedProject = useProjectStore((s) => s.selectedProject);
   const setShowSettings = useProjectStore((s) => s.setShowSettings);
   const isDarkMode = useProjectStore((s) => s.isDarkMode);
   const [showAbout, setShowAbout] = useState(false);
   const [notification, setNotification] = useState(null);
   const notificationTimerRef = useRef(null);
-
-  const hasProject = !!selectedProject;
 
   useEffect(() => {
     return () => {
@@ -160,6 +157,8 @@ export default function LeftSidebar() {
   const handleNav = useCallback((id) => {
     switch (id) {
       case 'dashboard':
+        router.push('/dashboard', { scroll: false });
+        break;
       case 'projects':
         router.push('/', { scroll: false });
         break;
@@ -191,16 +190,17 @@ export default function LeftSidebar() {
   }, [router, isLeftSidebarOpen, setIsLeftSidebarOpen]);
 
   const isActive = (id) => {
-    if (id === 'dashboard') return !hasProject && pathname === '/';
-    if (id === 'projects') return hasProject && pathname === '/';
+    if (id === 'dashboard') return pathname === '/dashboard';
+    if (id === 'projects') return pathname === '/' || pathname.startsWith('/?project=');
     return false;
   };
 
   return (
     <motion.aside
+      initial={false}
       animate={{ width: isLeftSidebarOpen ? SIDEBAR_OPEN : SIDEBAR_CLOSED }}
       transition={{ type: 'spring', damping: 28, stiffness: 280, mass: 0.8 }}
-      className="shrink-0 bg-[var(--bg-primary)] border-r border-[var(--border-subtle)] flex flex-col h-screen fixed left-0 top-0 z-30 overflow-hidden"
+      className={`shrink-0 bg-[var(--bg-primary)] border-r border-[var(--border-subtle)] flex-col h-screen fixed left-0 top-0 z-30 overflow-hidden hidden lg:flex`}
       role="navigation"
       aria-label="Main navigation"
     >
