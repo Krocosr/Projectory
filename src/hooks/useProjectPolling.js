@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { recalculateProject } from '@/lib/storage';
 import { POLL_INTERVAL_MS } from '@/lib/constants';
+import { listenSync } from '@/lib/syncChannel';
 
 /**
  * Custom hook for polling the API for external project changes.
@@ -77,11 +78,16 @@ export function useProjectPolling(ready, onProjectsUpdate, selectedProject, onSe
     // Set up interval
     pollIntervalRef.current = setInterval(poll, POLL_INTERVAL_MS);
 
+    const cleanupSync = listenSync(() => {
+      if (!document.hidden) poll();
+    });
+
     return () => {
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);
       }
       document.removeEventListener('visibilitychange', handleVisibility);
+      cleanupSync();
     };
   }, [ready, onProjectsUpdate, onSelectedProjectUpdate]);
 }

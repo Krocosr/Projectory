@@ -7,7 +7,7 @@ on:
     branches: [master]
 
 jobs:
-  build:
+  ci:
     runs-on: ubuntu-latest
 
     steps:
@@ -23,3 +23,33 @@ jobs:
       - run: npm run lint
 
       - run: npm run build
+
+      - run: npm test
+
+      - name: Build Docker image
+        run: docker build .
+
+  tauri:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install Tauri system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - run: npm ci
+
+      - run: npm run tauri:build
