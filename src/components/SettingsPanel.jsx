@@ -91,7 +91,7 @@ export default function SettingsPanel() {
             </div>
 
             <div className="px-6 py-4 border-t border-[var(--border-subtle)] bg-[var(--bg-secondary)]/30">
-              <p className="text-xs text-[var(--text-muted)]">Projectory v1.0</p>
+              <p className="text-xs text-[var(--text-muted)]">Projectory v{APP_VERSION}</p>
             </div>
           </motion.div>
         </motion.div>

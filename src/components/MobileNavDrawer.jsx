@@ -369,7 +369,7 @@ export default function MobileNavDrawer({ isOpen, onClose }) {
                 </div>
                 <div className="text-xs text-[var(--text-muted)] space-y-1 leading-relaxed">
                   <p>Built with care for local-first project management.</p>
-                  <p>Licensed under the MIT License.</p>
+                  <p>Licensed under the GPL 2.0 License.</p>
                 </div>
               </div>
             </motion.div>

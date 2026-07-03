@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { loadProjects, saveProjects, recalculateProject } from '@/lib/storage';
 import { createProject as createProjectUtil } from '@/app/data';
 import { TOAST_DURATION_MS, UNDO_TOAST_DURATION_MS, MAX_VISIBLE_TOASTS } from '@/lib/constants';
+import { perf } from '@/lib/perf';
 
 let toastIdCounter = 0;
 
@@ -170,6 +171,7 @@ const useProjectStore = create((set, get) => ({
   },
 
   updateProject: (updatedProject) => {
+    const end = perf.time('store:updateProject');
     const recalculated = recalculateProject(updatedProject);
     const currentProjects = get().projects;
     const currentSelected = get().selectedProject;
@@ -188,6 +190,7 @@ const useProjectStore = create((set, get) => ({
       get().recordActivity();
     }
 
+    end();
     return result;
   },
 
@@ -296,6 +299,7 @@ const useProjectStore = create((set, get) => ({
   },
 
   toggleTodoInProject: (projectId, todoId) => {
+    const end = perf.time('store:toggleTodoInProject');
     const currentProjects = get().projects;
     const now = new Date().toISOString();
 
@@ -318,6 +322,7 @@ const useProjectStore = create((set, get) => ({
       get().recordActivity();
     }
 
+    end();
     return result;
   },
 

@@ -19,6 +19,8 @@ dist/
 build/
 .next/
 .nuxt/
+out/
+.DS_Store
 
 # Debug and Cache
 .npm

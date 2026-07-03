@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import PropTypes from 'prop-types';
@@ -74,7 +74,7 @@ TodoItem.propTypes = {
   dragHandleProps: PropTypes.object,
 };
 
-export default function ActiveTodosSidebar({ isOpen, todos, onToggleTodo, onNavigateToProject, onReorderTodos }) {
+const ActiveTodosSidebar = memo(function ActiveTodosSidebar({ isOpen, todos, onToggleTodo, onNavigateToProject, onReorderTodos }) {
   const [sortBy, setSortBy] = useState('priority');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -120,7 +120,7 @@ export default function ActiveTodosSidebar({ isOpen, todos, onToggleTodo, onNavi
     <AnimatePresence>
       {isOpen && (
         <motion.aside
-          initial={false}
+          initial={{ width: 0, opacity: 0 }}
           animate={{ width: 380, opacity: 1 }}
           exit={{ width: 0, opacity: 0 }}
           transition={{ type: 'spring', damping: 30, stiffness: 300 }}
@@ -216,7 +216,7 @@ export default function ActiveTodosSidebar({ isOpen, todos, onToggleTodo, onNavi
       )}
     </AnimatePresence>
   );
-}
+});
 
 ActiveTodosSidebar.propTypes = {
   isOpen: PropTypes.bool.isRequired,
@@ -225,3 +225,5 @@ ActiveTodosSidebar.propTypes = {
   onNavigateToProject: PropTypes.func.isRequired,
   onReorderTodos: PropTypes.func,
 };
+
+export default ActiveTodosSidebar;

@@ -1,3 +1,5 @@
+import { perf } from './perf';
+
 export const SORT_OPTIONS = [
   { value: 'default', label: 'Default' },
   { value: 'priority-high', label: 'Priority ↓' },
@@ -110,6 +112,7 @@ export function sortTodos(todos, sortBy = 'default') {
 }
 
 export function getActiveTodos(projects, sortBy = 'priority') {
+  const end = perf.time('getActiveTodos');
   const results = [];
 
   for (const project of projects) {
@@ -134,7 +137,9 @@ export function getActiveTodos(projects, sortBy = 'priority') {
     }
   }
 
-  return sortTodos(results, sortBy);
+  const sorted = sortTodos(results, sortBy);
+  end();
+  return sorted;
 }
 
 function getLocalDate(dateStr) {

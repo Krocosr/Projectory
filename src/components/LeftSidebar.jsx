@@ -3,6 +3,8 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useRouter } from 'next/navigation';
 import useProjectStore from '@/store/useProjectStore';
+import { perf } from '@/lib/perf';
+import { APP_VERSION } from '@/lib/version';
 
 const SIDEBAR_OPEN = 260;
 const SIDEBAR_CLOSED = 56;
@@ -11,7 +13,6 @@ const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
   { id: 'projects', label: 'Projects', icon: 'projects' },
   { id: 'insights', label: 'Insights', icon: 'chart' },
-  { id: 'about', label: 'About', icon: 'info' },
 ];
 
 function Icon({ name, className = 'w-5 h-5', strokeWidth = 2 }) {
@@ -82,7 +83,7 @@ function AboutDialog({ onClose }) {
         <div className="px-6 py-5 space-y-5">
           <div>
             <p className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wider">Version</p>
-            <p className="text-sm text-[var(--text-primary)] mt-1 font-medium">0.11.4</p>
+            <p className="text-sm text-[var(--text-primary)] mt-1 font-medium">{APP_VERSION}</p>
           </div>
 
           <div className="space-y-3">
@@ -123,7 +124,7 @@ function AboutDialog({ onClose }) {
 
           <div className="text-xs text-[var(--text-muted)] space-y-1 leading-relaxed">
             <p>Built with care for local-first project management.</p>
-            <p>Licensed under the MIT License.</p>
+            <p>Licensed under the GPL 2.0 License.</p>
           </div>
         </div>
       </motion.div>
@@ -165,9 +166,6 @@ export default function LeftSidebar() {
       case 'insights':
         showNotification('Insights — coming soon');
         break;
-      case 'about':
-        setShowAbout(true);
-        break;
       case 'settings':
         setShowSettings(true);
         break;
@@ -179,8 +177,18 @@ export default function LeftSidebar() {
   }, [setShowSettings]);
 
   const toggle = useCallback(() => {
+    perf.mark('sidebar-toggle-start');
     setIsLeftSidebarOpen(!isLeftSidebarOpen);
   }, [isLeftSidebarOpen, setIsLeftSidebarOpen]);
+
+  const expandedSectionRef = useRef(null);
+
+  useEffect(() => {
+    if (isLeftSidebarOpen && expandedSectionRef.current) {
+      perf.mark('sidebar-expanded-mounted');
+      perf.measure('sidebar-expand-full', 'sidebar-toggle-start', 'sidebar-expanded-mounted');
+    }
+  }, [isLeftSidebarOpen]);
 
   const goHome = useCallback(() => {
     router.push('/', { scroll: false });
@@ -200,6 +208,10 @@ export default function LeftSidebar() {
       initial={false}
       animate={{ width: isLeftSidebarOpen ? SIDEBAR_OPEN : SIDEBAR_CLOSED }}
       transition={{ type: 'spring', damping: 28, stiffness: 280, mass: 0.8 }}
+      onAnimationComplete={() => {
+        perf.measure('sidebar-animation-settle', 'sidebar-toggle-start', undefined);
+        perf.mark('sidebar-animation-done');
+      }}
       className={`shrink-0 bg-[var(--bg-primary)] border-r border-[var(--border-subtle)] flex-col h-screen fixed left-0 top-0 z-30 overflow-hidden hidden lg:flex`}
       role="navigation"
       aria-label="Main navigation"
@@ -226,7 +238,7 @@ export default function LeftSidebar() {
           </div>
         </>
       ) : (
-        <>
+        <div ref={expandedSectionRef} className="flex flex-col h-full">
           <div className="flex items-center justify-between px-4 h-14 border-b border-[var(--border-subtle)] shrink-0">
             <button onClick={goHome} className="flex items-center gap-3 cursor-pointer">
               <img
@@ -277,7 +289,14 @@ export default function LeftSidebar() {
             )}
           </AnimatePresence>
 
-          <div className="p-3 shrink-0">
+          <div className="p-3 shrink-0 space-y-1">
+            <button
+              onClick={() => setShowAbout(true)}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--border-subtle)] transition-all duration-150 font-medium"
+            >
+              <Icon name="info" className="shrink-0 w-5 h-5" />
+              <span>About</span>
+            </button>
             <button
               onClick={handleSettings}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--border-subtle)] transition-all duration-150 font-medium"
@@ -286,7 +305,7 @@ export default function LeftSidebar() {
               <span>Settings</span>
             </button>
           </div>
-        </>
+        </div>
       )}
 
       <AnimatePresence>

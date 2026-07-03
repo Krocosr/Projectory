@@ -17,7 +17,8 @@
     "test:e2e:headed": "playwright test --headed",
     "tauri": "tauri",
 "tauri:dev": "tauri dev",
-"tauri:build": "tauri build"
+"tauri:build": "tauri build",
+    "tauri:build:d": "$env:CARGO_TARGET_DIR='D:\\deadliner-tauri-target'; npx tauri build"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

@@ -2,6 +2,7 @@ import { runMigrations, needsMigration, getCurrentVersion } from './migrations';
 import { BACKUP_KEY, ARCHIVE_TTL_MS, API_SYNC_DEBOUNCE_MS } from './constants';
 import db from './db';
 import { postSync } from './syncChannel';
+import { perf } from './perf';
 
 const STORAGE_KEY = 'projectory_projects';
 
@@ -153,6 +154,7 @@ export function importFromFile(file) {
 }
 
 export function saveProjects(projects) {
+  perf.mark('save-start');
   if (typeof window === 'undefined') return { success: false, error: 'Not in browser' };
 
   if (!Array.isArray(projects)) {
@@ -163,15 +165,31 @@ export function saveProjects(projects) {
 
   const data = { version: getCurrentVersion(), projects };
 
+  perf.mark('save-ls-start');
   const lsOk = saveToLocalStorage(data);
+  perf.mark('save-ls-end');
+  perf.measure('save-localStorage', 'save-ls-start', 'save-ls-end');
 
+  perf.mark('save-idb-start');
   db.projects.bulkPut(projects).catch((e) => {
     console.error('IndexedDB write failed:', e);
   });
+  perf.mark('save-idb-end');
+  perf.measure('save-indexedDB', 'save-idb-start', 'save-idb-end');
 
+  perf.mark('save-backup-start');
   createAutoBackup(projects);
+  perf.mark('save-backup-end');
+  perf.measure('save-backup', 'save-backup-start', 'save-backup-end');
+
+  perf.mark('save-api-start');
   syncToApi(projects);
+  perf.mark('save-api-end');
+  perf.measure('save-api-schedule', 'save-api-start', 'save-api-end');
+
   postSync();
+
+  perf.measure('save-total', 'save-start', 'save-api-end');
 
   if (!lsOk) {
     return { success: false, error: 'localStorage is full. Data still saved to IndexedDB.' };

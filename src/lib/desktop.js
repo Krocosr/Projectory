@@ -12,7 +12,10 @@ async function ensureTauri() {
   }
 }
 
-export const isDesktop = () => typeof window !== 'undefined' && window.__TAURI__;
+export const isDesktop = () => {
+  if (typeof window === 'undefined') return false;
+  return !!(window.__TAURI__ || window.__TAURI_INTERNALS__);
+};
 
 export async function pickFile() {
   if (!(await ensureTauri())) return null;

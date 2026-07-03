@@ -148,9 +148,9 @@ Projectory includes a [Model Context Protocol](https://modelcontextprotocol.io/)
 
 ### Setup
 
-1. **Install dependencies** — the MCP server uses the Model Context Protocol SDK (already included in the root `package.json`):
+1. **Install dependencies** — the MCP server has its own `package.json`:
    ```bash
-   npm install
+   cd mcp-server && npm install && cd ..
    ```
 
 2. **Start the app** — the MCP server needs the API running:
@@ -176,9 +176,9 @@ Projectory includes a [Model Context Protocol](https://modelcontextprotocol.io/)
    ```json
    "mcp": {
      "deadliner": {
-       "type": "command",
-       "command": "node",
-       "args": ["C:\\path\\to\\deadliner\\mcp-server\\index.mjs"],
+       "type": "local",
+       "command": ["node", "C:\\path\\to\\deadliner\\mcp-server\\index.mjs"],
+       "cwd": "C:\\path\\to\\deadliner",
        "enabled": true
      }
    }
@@ -190,10 +190,10 @@ Projectory includes a [Model Context Protocol](https://modelcontextprotocol.io/)
    ```json
    // OpenCode example with custom port:
    "deadliner": {
-     "type": "command",
-     "command": "node",
-     "args": ["C:\\path\\to\\deadliner\\mcp-server\\index.mjs"],
-     "env": { "DEADLINER_API": "http://localhost:7000/api/projects" },
+     "type": "local",
+     "command": ["node", "C:\\path\\to\\deadliner\\mcp-server\\index.mjs"],
+     "cwd": "C:\\path\\to\\deadliner",
+     "environment": { "DEADLINER_API": "http://localhost:7000/api/projects" },
      "enabled": true
    }
    ```

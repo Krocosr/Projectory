@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, Profiler } from 'react';
 import { useRouter } from 'next/navigation';
 import useProjectStore from '@/store/useProjectStore';
 import LeftSidebar from '@/components/LeftSidebar';
@@ -13,6 +13,15 @@ import RunningSessionBar from '@/components/RunningSessionBar';
 import { getActiveTodos } from '@/lib/todoAggregator';
 import { saveProjects } from '@/lib/storage';
 import { useSessionManager } from '@/hooks/useSessionManager';
+import { perf } from '@/lib/perf';
+
+const PROFILER_THRESHOLD = 5;
+
+function onProfilerRender(id, phase, actualDuration) {
+  if (actualDuration > PROFILER_THRESHOLD) {
+    console.log(`[perf] <${id}> (${phase}): ${actualDuration.toFixed(2)}ms`);
+  }
+}
 
 export default function AppLayout({ children }) {
   const router = useRouter();
@@ -102,11 +111,17 @@ export default function AppLayout({ children }) {
     stopSession(p, updateProject, addToast);
   }, [projects, updateProject, stopSession, addToast]);
 
+  const endLayoutRender = perf.traceRender('AppLayout');
+
   return (
     <div className={`min-h-screen flex overflow-hidden${isStreamerMode ? ' streamer-mode' : ''}`}>
-      <LeftSidebar />
+      <Profiler id="LeftSidebar" onRender={onProfilerRender}>
+        <LeftSidebar />
+      </Profiler>
 
-      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      <Profiler id="ToastContainer" onRender={onProfilerRender}>
+        <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      </Profiler>
 
       {(isLeftSidebarOpen || isSidebarOpen) && (
         <div
@@ -135,36 +150,45 @@ export default function AppLayout({ children }) {
         {children}
       </div>
 
-      <ActiveTodosSidebar
-        isOpen={isSidebarOpen}
-        todos={aggregatedTodos}
-        onToggleTodo={handleToggleTodoFromSidebar}
-        onNavigateToProject={handleSidebarNavigate}
-        onReorderTodos={handleSidebarReorder}
-      />
+      <Profiler id="ActiveTodosSidebar" onRender={onProfilerRender}>
+        <ActiveTodosSidebar
+          isOpen={isSidebarOpen}
+          todos={aggregatedTodos}
+          onToggleTodo={handleToggleTodoFromSidebar}
+          onNavigateToProject={handleSidebarNavigate}
+          onReorderTodos={handleSidebarReorder}
+        />
+      </Profiler>
 
-      <RunningSessionBar
-        runningSessions={runningSessions}
-        projects={projects}
-        onNavigate={handleSessionNavigate}
-        onStopSession={handleSessionStop}
-      />
+      <Profiler id="RunningSessionBar" onRender={onProfilerRender}>
+        <RunningSessionBar
+          runningSessions={runningSessions}
+          projects={projects}
+          onNavigate={handleSessionNavigate}
+          onStopSession={handleSessionStop}
+        />
+      </Profiler>
 
-      <NewProjectModal
-        isOpen={isNewModalOpen}
-        onClose={() => setIsNewModalOpen(false)}
-        onSave={(form) => {
-          const result = createProject(form);
-          if (result.success) {
-            setIsNewModalOpen(false);
-            addToast('Project created');
-          } else {
-            addToast(result.error || 'Failed to save project', 'error');
-          }
-        }}
-      />
+      <Profiler id="NewProjectModal" onRender={onProfilerRender}>
+        <NewProjectModal
+          isOpen={isNewModalOpen}
+          onClose={() => setIsNewModalOpen(false)}
+          onSave={(form) => {
+            const result = createProject(form);
+            if (result.success) {
+              setIsNewModalOpen(false);
+              addToast('Project created');
+            } else {
+              addToast(result.error || 'Failed to save project', 'error');
+            }
+          }}
+        />
+      </Profiler>
 
-      <SettingsPanel />
+      <Profiler id="SettingsPanel" onRender={onProfilerRender}>
+        <SettingsPanel />
+      </Profiler>
+      {endLayoutRender()}
     </div>
   );
 }
