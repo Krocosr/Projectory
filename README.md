@@ -131,7 +131,7 @@ See [TESTING.md](TESTING.md) for full guide.
 
 ## MCP Server (AI Integration)
 
-Projectory includes a [Model Context Protocol](https://modelcontextprotocol.io/) server that lets AI assistants (Claude, OpenCode, etc.) read and write your project data directly.
+Projectory includes a [Model Context Protocol](https://modelcontextprotocol.io/) server that lets AI assistants (Claude, OpenCode, Cursor, etc.) read and write your project data directly.
 
 ### What it exposes
 
@@ -148,45 +148,63 @@ Projectory includes a [Model Context Protocol](https://modelcontextprotocol.io/)
 
 ### Setup
 
-1. **Start the app** — the MCP server needs the API running:
+1. **Install dependencies** — the MCP server uses the Model Context Protocol SDK (already included in the root `package.json`):
+   ```bash
+   npm install
+   ```
+
+2. **Start the app** — the MCP server needs the API running:
    ```bash
    npm run dev
    ```
 
-2. **Configure your client** — point it to the MCP server at `mcp-server/index.mjs`:
+3. **Configure your client** — point it to `mcp-server/index.mjs`:
 
-   **For Claude Desktop / OpenCode / any MCP client**, add to your `mcp.json` or client config:
+   **For Claude Desktop** — add to `claude_desktop_config.json`:
    ```json
    {
      "mcpServers": {
        "deadliner": {
          "command": "node",
-         "args": ["path/to/deadliner/mcp-server/index.mjs"]
+         "args": ["/absolute/path/to/deadliner/mcp-server/index.mjs"]
        }
      }
    }
    ```
 
-   The server auto-discovers the API port by scanning common ports. If your API is on a non-standard port, set the `DEADLINER_API` env var:
+   **For OpenCode** — add to `~/.config/opencode/opencode.jsonc`:
    ```json
-   {
-     "mcpServers": {
-       "deadliner": {
-         "command": "node",
-         "args": ["path/to/deadliner/mcp-server/index.mjs"],
-         "env": { "DEADLINER_API": "http://localhost:7000/api/projects" }
-       }
+   "mcp": {
+     "deadliner": {
+       "type": "command",
+       "command": "node",
+       "args": ["C:\\path\\to\\deadliner\\mcp-server\\index.mjs"],
+       "enabled": true
      }
    }
    ```
 
-   If you already have this project open in OpenCode, the included `.opencode/` config and `mcp.json` auto-register the MCP server.
+   **For Cursor / any `mcp.json`-based client** — the included `mcp.json` at the project root works if your editor opens the project directory. Otherwise use an absolute path.
 
-3. **Done** — your AI assistant can now manage your projects and todos.
+   The server auto-discovers the API port by scanning common ports (3000, 3001, etc.). If your API is on a non-standard port, set the `DEADLINER_API` env var:
+   ```json
+   // OpenCode example with custom port:
+   "deadliner": {
+     "type": "command",
+     "command": "node",
+     "args": ["C:\\path\\to\\deadliner\\mcp-server\\index.mjs"],
+     "env": { "DEADLINER_API": "http://localhost:7000/api/projects" },
+     "enabled": true
+   }
+   ```
 
-or
-**Copy-Paste this to your agent:**
-> Read and follow the setup instructions at https://raw.githubusercontent.com/Krocosr/Projectory/master/README.md to configure yourself.
+4. **Done** — your AI assistant can now manage your projects and todos.
+
+### Troubleshooting
+
+- **"No API server found"** — ensure `npm run dev` is running. The MCP server scans common ports at startup.
+- **"Failed to load fileStorage module"** — the server falls back to direct file access when the API is unreachable, but this requires the project structure to be intact. Start the dev server for best results.
+- **Path issues on Windows** — use absolute paths with double backslashes (`C:\\path\\to\\deadliner\\mcp-server\\index.mjs`).
 
 ---
 
