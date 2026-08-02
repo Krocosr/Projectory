@@ -3,10 +3,12 @@ import { BACKUP_KEY, ARCHIVE_TTL_MS, API_SYNC_DEBOUNCE_MS } from './constants';
 import db from './db';
 import { postSync } from './syncChannel';
 import { perf } from './perf';
+import { isDesktop, readDataFile, writeDataFile } from './desktop';
 
 const STORAGE_KEY = 'projectory_projects';
 
 let syncTimer = null;
+let fileTimer = null;
 
 function loadFromLocalStorage() {
   if (typeof window === 'undefined') return null;
@@ -46,7 +48,15 @@ function syncToApi(projects) {
   }, API_SYNC_DEBOUNCE_MS);
 }
 
-function processProjects(raw) {
+function syncToFile(projects) {
+  if (typeof window === 'undefined') return;
+  if (fileTimer) clearTimeout(fileTimer);
+  fileTimer = setTimeout(() => {
+    writeDataFile(JSON.stringify(projects, null, 2));
+  }, API_SYNC_DEBOUNCE_MS);
+}
+
+export function processProjects(raw) {
   if (!raw) return null;
 
   let parsed = raw;
@@ -121,6 +131,17 @@ export async function recoverFromApi() {
   }
 }
 
+export async function recoverFromFile() {
+  if (typeof window === 'undefined') return null;
+  const data = await readDataFile();
+  if (!data || !data.contents) return null;
+  const projects = processProjects(data.contents);
+  if (!projects) return null;
+  saveToLocalStorage({ version: getCurrentVersion(), projects });
+  try { await db.projects.bulkPut(projects); } catch {}
+  return projects;
+}
+
 export function exportToFile(projects) {
   const blob = new Blob([JSON.stringify(projects, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -183,7 +204,11 @@ export function saveProjects(projects) {
   perf.measure('save-backup', 'save-backup-start', 'save-backup-end');
 
   perf.mark('save-api-start');
-  syncToApi(projects);
+  if (isDesktop()) {
+    syncToFile(projects);
+  } else {
+    syncToApi(projects);
+  }
   perf.mark('save-api-end');
   perf.measure('save-api-schedule', 'save-api-start', 'save-api-end');
 

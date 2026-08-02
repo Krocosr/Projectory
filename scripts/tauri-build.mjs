@@ -5,6 +5,8 @@ import { join } from 'path';
 const apiDir = join(process.cwd(), 'src', 'app', 'api');
 const apiBackup = join(process.cwd(), 'node_modules', '.api-backup');
 
+execSync('node scripts/version.mjs sync', { stdio: 'inherit' });
+
 // Recover from interrupted previous run
 if (existsSync(apiBackup)) {
   if (!existsSync(apiDir)) {

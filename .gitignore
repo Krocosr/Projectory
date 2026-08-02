@@ -37,6 +37,7 @@ src-tauri/target/
 mcp.json
 .opencode/
 AGENTS.md
+.projectory
 
 # Generated / user data
 backup/

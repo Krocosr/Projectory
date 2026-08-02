@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
-import { recalculateProject } from '@/lib/storage';
+import { recalculateProject, processProjects } from '@/lib/storage';
 import { POLL_INTERVAL_MS } from '@/lib/constants';
 import { listenSync } from '@/lib/syncChannel';
+import { isDesktop, readDataFile } from '@/lib/desktop';
 
 /**
  * Custom hook for polling the API for external project changes.
@@ -29,6 +30,25 @@ export function useProjectPolling(ready, onProjectsUpdate, selectedProject, onSe
       if (document.hidden) return;
 
       try {
+        if (isDesktop()) {
+          const data = await readDataFile();
+          const modified = data ? data.mtime_ms : null;
+          if (modified === null || modified === undefined) return;
+          if (lastPollMtimeRef.current !== null && modified !== lastPollMtimeRef.current) {
+            const projects = processProjects(data.contents);
+            if (projects && projects.length > 0) {
+              onProjectsUpdate(projects);
+              const currentSelected = selectedProjectRef.current;
+              if (currentSelected) {
+                const updated = projects.find((p) => p.id === currentSelected.id);
+                if (updated) onSelectedProjectUpdate(updated);
+              }
+            }
+          }
+          lastPollMtimeRef.current = modified;
+          return;
+        }
+
         // Check if file has been modified
         const res = await fetch('/api/projects/poll');
         if (!res.ok) return;

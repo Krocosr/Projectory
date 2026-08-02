@@ -1,6 +1,6 @@
 {
   "name": "projectory",
-  "version": "0.12.1",
+  "version": "0.12.2",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,6 +8,8 @@
     "build": "next build",
     "lint": "next lint",
     "start": "node scripts/start.mjs",
+    "version:bump": "node scripts/version.mjs bump",
+    "version:sync": "node scripts/version.mjs sync",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
@@ -16,8 +18,8 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
     "tauri": "tauri",
-"tauri:dev": "tauri dev",
-"tauri:build": "tauri build",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
     "tauri:build:d": "$env:CARGO_TARGET_DIR='D:\\deadliner-tauri-target'; npx tauri build"
   },
   "dependencies": {

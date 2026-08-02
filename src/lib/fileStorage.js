@@ -2,8 +2,29 @@ import fs from 'fs';
 import path from 'path';
 import { ProjectSchema } from './validation.js';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const DATA_FILE = path.join(DATA_DIR, 'projects.json');
+function resolveConfigPath() {
+  const fromEnv = process.env.PROJECTORY_CONFIG;
+  if (fromEnv && fs.existsSync(fromEnv)) return path.resolve(fromEnv);
+  const local = path.join(process.cwd(), '.projectory');
+  if (fs.existsSync(local)) return local;
+  return null;
+}
+
+function resolveDataFile() {
+  const configPath = resolveConfigPath();
+  if (configPath) {
+    try {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      if (config.dataFile) return path.resolve(path.dirname(configPath), config.dataFile);
+    } catch (e) {
+      console.warn('Failed to read .projectory config:', e.message);
+    }
+  }
+  return path.join(process.cwd(), 'data', 'projects.json');
+}
+
+const DATA_FILE = resolveDataFile();
+const DATA_DIR = path.dirname(DATA_FILE);
 
 export function readProjects() {
   if (!fs.existsSync(DATA_FILE)) return [];

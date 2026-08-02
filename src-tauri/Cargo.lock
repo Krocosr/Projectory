@@ -2574,7 +2574,7 @@ dependencies = [
 
 [[package]]
 name = "projectory"
-version = "0.11.1"
+version = "0.12.2"
 dependencies = [
  "serde",
  "serde_json",

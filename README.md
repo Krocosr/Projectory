@@ -269,11 +269,12 @@ mcp-server/
 scripts/
 ├── projectory-cli.mjs       # Terminal project manager
 ├── start.mjs                # Production server (auto-port)
-├── sync-version.mjs         # Sync version across configs
+├── version.mjs              # Version bump/sync from .projectory
 └── tauri-build.mjs          # Build for Tauri (static export)
 data/
 └── projects.json            # API data file (gitignored)
 mcp.json                     # MCP client config
+.projectory                  # Shared version + data config (gitignored)
 ```
 
 ---

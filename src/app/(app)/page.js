@@ -17,7 +17,7 @@ import { ProjectDetailSkeleton } from '@/components/ProjectDetailSkeleton';
 import { SortableProjectCard } from '@/components/SortableProjectCard';
 import ProjectCard from '@/components/ProjectCard';
 import dynamic from 'next/dynamic';
-import { launchItems as desktopLaunchItems } from '@/lib/desktop';
+import { launchItems as desktopLaunchItems, isDesktop } from '@/lib/desktop';
 
 const ProjectDetailView = dynamic(() => import('@/components/ProjectDetailView'), { ssr: false });
 
@@ -26,7 +26,7 @@ import { useProjectDragDrop } from '@/hooks/useProjectDragDrop';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 
 import { seedProjects, SEED_KEY } from '@/app/data';
-import { recoverFromApi, exportToFile, importFromFile, createAutoBackup } from '@/lib/storage';
+import { recoverFromApi, recoverFromFile, exportToFile, importFromFile, createAutoBackup } from '@/lib/storage';
 import { migrateFromLocalStorage } from '@/lib/db';
 import { getActiveTodos } from '@/lib/todoAggregator';
 import { searchProjects } from '@/lib/search';
@@ -119,7 +119,8 @@ function ProjectsContent() {
 
   useEffect(() => {
     let cancelled = false;
-    recoverFromApi().then((recovered) => {
+    const recover = isDesktop() ? recoverFromFile : recoverFromApi;
+    recover().then((recovered) => {
       if (cancelled) return;
       const hasLocal = useProjectStore.getState().projects.length > 0;
 

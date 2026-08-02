@@ -1,5 +1,7 @@
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+use std::time::UNIX_EPOCH;
 use tauri::Manager;
 use tauri_plugin_opener::OpenerExt;
 
@@ -7,6 +9,77 @@ use tauri_plugin_opener::OpenerExt;
 use std::os::windows::process::CommandExt;
 
 const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+#[derive(serde::Serialize)]
+struct ProjectsData {
+    contents: String,
+    mtime_ms: Option<u64>,
+}
+
+fn config_path() -> Option<PathBuf> {
+    if let Ok(p) = std::env::var("PROJECTORY_CONFIG") {
+        let pb = PathBuf::from(&p);
+        if pb.exists() {
+            return Some(pb);
+        }
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        for dir in cwd.ancestors() {
+            let candidate = dir.join(".projectory");
+            if candidate.exists() {
+                return Some(candidate);
+            }
+        }
+    }
+    let home = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")).ok();
+    if let Some(h) = home {
+        let candidate = Path::new(&h).join(".projectory");
+        if candidate.exists() {
+            return Some(candidate);
+        }
+    }
+    None
+}
+
+fn data_file_path(app: &tauri::AppHandle) -> PathBuf {
+    if let Some(config_path) = config_path() {
+        if let Ok(text) = std::fs::read_to_string(&config_path) {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) {
+                if let Some(data_file) = json.get("dataFile").and_then(|v| v.as_str()) {
+                    let p = PathBuf::from(data_file);
+                    return if p.is_absolute() {
+                        p
+                    } else {
+                        config_path.parent().unwrap_or(Path::new(".")).join(data_file)
+                    };
+                }
+            }
+        }
+    }
+    app.path().app_config_dir().unwrap_or_else(|_| PathBuf::from(".")).join("data").join("projects.json")
+}
+
+fn mtime_ms(path: &Path) -> Option<u64> {
+    std::fs::metadata(path).ok()?.modified().ok()
+        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+        .map(|d| d.as_millis() as u64)
+}
+
+#[tauri::command]
+async fn read_projects_data(app: tauri::AppHandle) -> Result<ProjectsData, String> {
+    let path = data_file_path(&app);
+    let contents = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    Ok(ProjectsData { contents, mtime_ms: mtime_ms(&path) })
+}
+
+#[tauri::command]
+async fn write_projects_data(app: tauri::AppHandle, contents: String) -> Result<(), String> {
+    let path = data_file_path(&app);
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&path, contents).map_err(|e| e.to_string())
+}
 
 #[derive(serde::Deserialize)]
 struct LaunchItem {
@@ -118,7 +191,12 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![launch_items, stop_item])
+        .invoke_handler(tauri::generate_handler![
+            launch_items,
+            stop_item,
+            read_projects_data,
+            write_projects_data
+        ])
         .setup(|app| {
             app.manage(AppState {
                 active_pids: Mutex::new(HashMap::new()),
